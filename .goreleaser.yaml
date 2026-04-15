@@ -1,5 +1,6 @@
 # GoReleaser config for gsc — produces binaries for the 5 target platforms per PRD §6.
 version: 2
+project_name: gsc
 
 before:
   hooks:
@@ -37,7 +38,7 @@ archives:
       {{- else }}{{ .Arch }}{{ end }}
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
     files:
       - README.md
       - LICENSE*
