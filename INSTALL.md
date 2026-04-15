@@ -87,6 +87,60 @@ $env:GSC_VERSION = 'v1.2.3'
 irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.ps1 | iex
 ```
 
+## Auto-Update
+
+Once installed, `gsc` keeps itself current. On every invocation a background goroutine checks the GitHub Releases API at most once per 24 hours; if a newer stable tag is published and the running binary is writable, it downloads the matching archive, verifies the SHA-256 against `checksums.txt`, and atomically swaps the binary in place. The current command is unaffected — the next `gsc` invocation runs the new version.
+
+### Disabling auto-update
+
+Two equivalent opt-outs:
+
+```bash
+export GSC_NO_UPDATE=1
+```
+
+Or in `~/.config/gsc/config.toml`:
+
+```toml
+auto_update = false
+```
+
+When either is set, no network requests are made and `update-state.json` is not touched.
+
+### Managed installs are skipped automatically
+
+`gsc` detects package-managed binaries by install-path prefix and never auto-updates them — updates come through the package manager instead. The detected prefixes are:
+
+- `/opt/homebrew`, `/usr/local/Cellar` (Homebrew)
+- `/home/linuxbrew` (Linuxbrew)
+- `/snap` (Snap)
+- `/var/lib/flatpak` (Flatpak)
+- `C:\ProgramData\chocolatey` (Chocolatey)
+- `C:\Users\*\scoop` (Scoop)
+- `C:\Program Files`
+
+A binary that is not writable by the current user (or owned by a different uid on unix) is also skipped.
+
+### Inspecting / forcing updates
+
+```bash
+gsc update status   # current + latest version, last check time, enabled state (with reason if disabled)
+gsc update check    # force a check now, bypassing the 24h throttle
+gsc update apply    # force download + atomic swap to the latest version
+```
+
+`update status` also prints the resolved install path and the last-installed version recorded in state. `update check` and `update apply` still respect the opt-out and managed-install guards.
+
+### Post-update notice
+
+After a successful background update, the next `gsc` command prints a one-line notice to stderr before its normal output:
+
+```
+gsc: updated to vX.Y.Z (was vA.B.C)
+```
+
+Suppress it with `GSC_NO_UPDATE_NOTICE=1`.
+
 ## Cutting a release (maintainers)
 
 The release version lives in the [`VERSION`](./VERSION) file at the repo root. To ship a new release:

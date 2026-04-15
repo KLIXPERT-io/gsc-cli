@@ -26,6 +26,8 @@ irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.ps1 | iex
 
 Or `go install github.com/KLIXPERT-io/gsc-cli/cmd/gsc@latest`. See [INSTALL.md](./INSTALL.md) for manual downloads, version pinning, and checksum verification.
 
+After install, `gsc` keeps itself up to date in the background — see [INSTALL.md](./INSTALL.md#auto-update) for details and how to opt out.
+
 ## Setup
 
 1. Create a Google Cloud project. Enable the **Search Console API**.

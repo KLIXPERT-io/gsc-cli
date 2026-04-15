@@ -33,10 +33,11 @@ type Logging struct {
 }
 
 type Config struct {
-	Auth     Auth     `toml:"auth"`
-	Defaults Defaults `toml:"defaults"`
-	Cache    Cache    `toml:"cache"`
-	Logging  Logging  `toml:"logging"`
+	Auth       Auth     `toml:"auth"`
+	Defaults   Defaults `toml:"defaults"`
+	Cache      Cache    `toml:"cache"`
+	Logging    Logging  `toml:"logging"`
+	AutoUpdate bool     `toml:"auto_update"`
 	// Path the config was loaded from (empty if defaults).
 	path string `toml:"-"`
 }
@@ -44,10 +45,31 @@ type Config struct {
 // Default returns built-in defaults.
 func Default() *Config {
 	return &Config{
-		Defaults: Defaults{Output: "json", Range: "last-28d"},
-		Cache:    Cache{Dir: "./.gsc/cache", DefaultTTL: "15m"},
-		Logging:  Logging{Format: "text"},
+		Defaults:   Defaults{Output: "json", Range: "last-28d"},
+		Cache:      Cache{Dir: "./.gsc/cache", DefaultTTL: "15m"},
+		Logging:    Logging{Format: "text"},
+		AutoUpdate: true,
 	}
+}
+
+// AutoUpdateEnabled is the single source of truth for whether the background
+// auto-updater (and `gsc update` apply paths) may run. It returns false when
+// the env var GSC_NO_UPDATE is set to a non-empty value other than "0" or
+// "false" (case-insensitive), or when c.AutoUpdate is false. Otherwise true.
+// A nil *Config is treated as defaults (AutoUpdate=true).
+func AutoUpdateEnabled(c *Config) bool {
+	if v, ok := os.LookupEnv("GSC_NO_UPDATE"); ok && v != "" {
+		switch strings.ToLower(v) {
+		case "0", "false":
+			// explicit off-of-off: treat as not set (do not disable)
+		default:
+			return false
+		}
+	}
+	if c != nil && !c.AutoUpdate {
+		return false
+	}
+	return true
 }
 
 func Path() (string, error) {

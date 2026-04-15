@@ -379,58 +379,156 @@
       "depends_on": [],
       "status": "done",
       "agent_type": "self",
-      "prd_refs": ["FR-001"],
+      "prd_refs": [
+        "FR-001"
+      ],
       "spec": "docs/feature/release-automation/feature.md"
     },
     {
       "id": "ra-2",
       "title": "Tag-triggered GitHub Actions release workflow",
       "phase": "feature",
-      "depends_on": ["ra-1"],
+      "depends_on": [
+        "ra-1"
+      ],
       "status": "done",
       "agent_type": "self",
-      "prd_refs": ["FR-002"],
+      "prd_refs": [
+        "FR-002"
+      ],
       "spec": "docs/feature/release-automation/feature.md"
     },
     {
       "id": "ra-3",
       "title": "install.sh one-liner for macOS/Linux with checksum verify",
       "phase": "feature",
-      "depends_on": ["ra-1"],
+      "depends_on": [
+        "ra-1"
+      ],
       "status": "done",
       "agent_type": "self",
-      "prd_refs": ["FR-003"],
+      "prd_refs": [
+        "FR-003"
+      ],
       "spec": "docs/feature/release-automation/feature.md"
     },
     {
       "id": "ra-4",
       "title": "install.ps1 one-liner for Windows with checksum verify",
       "phase": "feature",
-      "depends_on": ["ra-1"],
+      "depends_on": [
+        "ra-1"
+      ],
       "status": "done",
       "agent_type": "self",
-      "prd_refs": ["FR-004"],
+      "prd_refs": [
+        "FR-004"
+      ],
       "spec": "docs/feature/release-automation/feature.md"
     },
     {
       "id": "ra-5",
       "title": "INSTALL.md covering all install paths",
       "phase": "polish",
-      "depends_on": ["ra-3", "ra-4"],
+      "depends_on": [
+        "ra-3",
+        "ra-4"
+      ],
       "status": "done",
       "agent_type": "self",
-      "prd_refs": ["FR-005"],
+      "prd_refs": [
+        "FR-005"
+      ],
       "spec": "docs/feature/release-automation/feature.md"
     },
     {
       "id": "ra-6",
       "title": "README install section + release badge",
       "phase": "polish",
-      "depends_on": ["ra-5"],
+      "depends_on": [
+        "ra-5"
+      ],
       "status": "done",
       "agent_type": "self",
-      "prd_refs": ["FR-006"],
+      "prd_refs": [
+        "FR-006"
+      ],
       "spec": "docs/feature/release-automation/feature.md"
+    },
+    {
+      "id": "au-1",
+      "title": "internal/update package: state, platform swap/writability, fetch+verify+apply (FR-001/002/003/004/008)",
+      "phase": "feature",
+      "depends_on": [],
+      "status": "done",
+      "agent_type": "general-purpose",
+      "prd_refs": [
+        "FR-001",
+        "FR-002",
+        "FR-003",
+        "FR-004",
+        "FR-008"
+      ],
+      "spec": "docs/feature/auto-update/feature.md"
+    },
+    {
+      "id": "au-2",
+      "title": "Config AutoUpdate field + GSC_NO_UPDATE env var (FR-005)",
+      "phase": "feature",
+      "depends_on": [],
+      "status": "done",
+      "agent_type": "general-purpose",
+      "prd_refs": [
+        "FR-005"
+      ],
+      "spec": "docs/feature/auto-update/feature.md"
+    },
+    {
+      "id": "au-3",
+      "title": "gsc update status|check|apply subcommand (FR-006)",
+      "phase": "feature",
+      "depends_on": [
+        "au-1",
+        "au-2"
+      ],
+      "status": "done",
+      "agent_type": "general-purpose",
+      "prd_refs": [
+        "FR-006"
+      ],
+      "spec": "docs/feature/auto-update/feature.md"
+    },
+    {
+      "id": "au-4",
+      "title": "Background launcher + post-update notice wiring in root.go (FR-001/007)",
+      "phase": "integration",
+      "depends_on": [
+        "au-1",
+        "au-2"
+      ],
+      "status": "done",
+      "agent_type": "general-purpose",
+      "prd_refs": [
+        "FR-001",
+        "FR-007"
+      ],
+      "spec": "docs/feature/auto-update/feature.md"
+    },
+    {
+      "id": "au-5",
+      "title": "INSTALL.md + README docs for auto-update + opt-out",
+      "phase": "polish",
+      "depends_on": [
+        "au-3",
+        "au-4"
+      ],
+      "status": "done",
+      "agent_type": "general-purpose",
+      "prd_refs": [
+        "FR-005",
+        "FR-006"
+      ],
+      "spec": "docs/feature/auto-update/feature.md"
     }
   ]
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/KLIXPERT-io/gsc-cli/internal/logging"
 	"github.com/KLIXPERT-io/gsc-cli/internal/output"
 	"github.com/KLIXPERT-io/gsc-cli/internal/quota"
+	"github.com/KLIXPERT-io/gsc-cli/internal/update"
 	"github.com/spf13/cobra"
 )
 
@@ -90,6 +91,7 @@ locally, tracks quota, and emits machine-readable errors for LLM agents.`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			maybePrintUpdateNotice(cmd, version)
 			cfg, err := config.Load()
 			if err != nil {
 				return err
@@ -138,6 +140,7 @@ locally, tracks quota, and emits machine-readable errors for LLM agents.`,
 		newSitemapsCmd(),
 		newQuotaCmd(),
 		newConfigCmd(),
+		newUpdateCmd(version),
 	)
 
 	root.SetContext(ctx)
@@ -146,6 +149,29 @@ locally, tracks quota, and emits machine-readable errors for LLM agents.`,
 		return errs.ExitCode(err)
 	}
 	return 0
+}
+
+// maybePrintUpdateNotice emits the FR-007 post-update notice once per upgrade.
+// It is suppressed for any command beneath the `update` subtree and via the
+// GSC_NO_UPDATE_NOTICE env var.
+func maybePrintUpdateNotice(cmd *cobra.Command, version string) {
+	if v := os.Getenv("GSC_NO_UPDATE_NOTICE"); v != "" && v != "0" && v != "false" {
+		return
+	}
+	for c := cmd; c != nil; c = c.Parent() {
+		if c.Name() == "update" && c.HasParent() {
+			return
+		}
+	}
+	st, err := update.LoadState()
+	if err != nil {
+		return
+	}
+	installed := st.LastInstalledVersion
+	if installed == "" || installed == version || installed == "v"+version {
+		return
+	}
+	fmt.Fprintf(cmd.ErrOrStderr(), "gsc: updated to %s (was v%s)\n", installed, version)
 }
 
 func firstNonEmpty(vals ...string) string {
