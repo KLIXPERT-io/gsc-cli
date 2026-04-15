@@ -59,7 +59,8 @@ func (s *State) buildClient(ctx context.Context) (*client.Client, string, error)
 	}
 	cfg, err := auth.LoadConfig(credsPath)
 	if err != nil {
-		return nil, "", errs.New(errs.CodeAuthMissing, err.Error()).WithHint("Set auth.credentials_path or pass --credentials.")
+		hint := "Run `gsc config set auth.credentials_path <path-to-client_secrets.json>`, or pass --credentials, or set GSC_CREDENTIALS."
+		return nil, "", errs.New(errs.CodeAuthMissing, err.Error()).WithHint(hint)
 	}
 	httpClient, err := auth.HTTPClient(ctx, cfg)
 	if err != nil {

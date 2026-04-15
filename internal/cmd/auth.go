@@ -52,11 +52,19 @@ Examples:
 			if err != nil {
 				return errs.New(errs.CodeAuthDenied, err.Error())
 			}
+			// Persist the credentials path to config so subsequent commands can find it.
+			if s.Cfg.Auth.CredentialsPath == "" {
+				if err := s.Cfg.Set("auth.credentials_path", credsPath); err != nil {
+					fmt.Fprintln(os.Stderr, "warning: could not save credentials path to config: "+err.Error())
+				}
+			}
 			meta := output.Meta{APICalls: 1}
 			return emit(cmd, map[string]any{
-				"ok":         true,
-				"has_refresh": tok.RefreshToken != "",
-				"expiry":     tok.Expiry,
+				"ok":                true,
+				"has_refresh":       tok.RefreshToken != "",
+				"expiry":            tok.Expiry,
+				"credentials_path":  credsPath,
+				"config_path":       func() string { p, _ := config.Path(); return p }(),
 			}, meta, nil, nil)
 		},
 	}
