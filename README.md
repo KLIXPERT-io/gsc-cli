@@ -48,12 +48,30 @@ gsc analytics query sc-domain:example.com \
 gsc analytics query sc-domain:example.com \
   --dimensions query --range last-28d --compare previous-period
 
+# Include fresh (non-finalized) last-2-days data
+gsc analytics query sc-domain:example.com --dimensions query --data-state all
+
+# Force byPage aggregation on a domain property
+gsc analytics query sc-domain:example.com --dimensions query --aggregation byPage
+
+# Auto-paginate past the 25k row cap and stream CSV to stdout
+gsc analytics query sc-domain:example.com --dimensions query,page --all --output csv > queries.csv
+
+# OR-of-AND filter groups: (query~brand AND device=MOBILE) OR (country=usa)
+gsc analytics query sc-domain:example.com \
+  --filter-group "query~brand,device=MOBILE" --filter-group "country=usa"
+
+# Overview with fresh data / domain-rollup aggregation
+gsc analytics overview sc-domain:example.com --data-state all --aggregation byProperty
+
 # Inspect URLs in bulk
 cat urls.txt | gsc urls inspect sc-domain:example.com -
 
 # Sitemaps
 gsc sitemaps list sc-domain:example.com
 gsc sitemaps submit sc-domain:example.com https://www.example.com/sitemap.xml
+# Remove a sitemap (destructive — requires --yes in non-TTY)
+gsc sitemaps remove sc-domain:example.com https://www.example.com/sitemap.xml --yes
 
 # Check quota
 gsc quota
@@ -123,7 +141,7 @@ Manage it with `gsc config get|set|path|list`.
 - `--no-cache` — bypass cache reads and writes
 - `--refresh` — bypass read but write fresh result
 - `--cache-ttl <duration>` — override TTL for this call
-- `--yes` — required for destructive ops (`sites remove`) when not on a TTY
+- `--yes` — required for destructive ops (`sites remove`, `sitemaps remove`) when not on a TTY
 - `-v, --verbose` / `-q, --quiet`
 - `--log-format text|json`
 

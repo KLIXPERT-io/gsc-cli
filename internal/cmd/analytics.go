@@ -132,7 +132,19 @@ Examples:
   gsc analytics query sc-domain:example.com --dimensions query --range last-28d --compare previous-period
 
   # page+country drilldown for US traffic
-  gsc analytics query sc-domain:example.com --dimensions page,country --filter country=usa --limit 100`,
+  gsc analytics query sc-domain:example.com --dimensions page,country --filter country=usa --limit 100
+
+  # include fresh (non-finalized) last-2-days data
+  gsc analytics query sc-domain:example.com --dimensions query --data-state all
+
+  # force byPage aggregation on a domain property
+  gsc analytics query sc-domain:example.com --dimensions query --aggregation byPage
+
+  # auto-paginate past 25k rows, stream CSV
+  gsc analytics query sc-domain:example.com --dimensions query,page --all --output csv
+
+  # OR-of-AND filter: (query~brand AND device=MOBILE) OR (country=usa)
+  gsc analytics query sc-domain:example.com --filter-group "query~brand,device=MOBILE" --filter-group "country=usa"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -303,7 +315,9 @@ func newAnalyticsOverviewCmd() *cobra.Command {
 Examples:
   gsc analytics overview sc-domain:example.com
   gsc analytics overview sc-domain:example.com --range last-7d
-  gsc analytics overview sc-domain:example.com --compare previous-year --output json`,
+  gsc analytics overview sc-domain:example.com --compare previous-year --output json
+  gsc analytics overview sc-domain:example.com --data-state all
+  gsc analytics overview sc-domain:example.com --aggregation byProperty`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
