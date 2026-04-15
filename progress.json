@@ -291,6 +291,86 @@
       "status": "done",
       "agent_type": "self",
       "prd_refs": []
+    },
+    {
+      "id": "acg-1",
+      "title": "sitemaps remove command with --yes gate",
+      "phase": "features",
+      "depends_on": [],
+      "status": "done",
+      "agent_type": "general-purpose",
+      "prd_refs": [
+        "FR-001"
+      ],
+      "spec": "docs/feature/api-coverage-gaps/feature.md"
+    },
+    {
+      "id": "acg-2",
+      "title": "--data-state on analytics query/overview",
+      "phase": "features",
+      "depends_on": [],
+      "status": "done",
+      "agent_type": "general-purpose",
+      "prd_refs": [
+        "FR-002"
+      ],
+      "spec": "docs/feature/api-coverage-gaps/feature.md"
+    },
+    {
+      "id": "acg-3",
+      "title": "--aggregation on analytics query/overview",
+      "phase": "features",
+      "depends_on": [],
+      "status": "done",
+      "agent_type": "general-purpose",
+      "prd_refs": [
+        "FR-003"
+      ],
+      "spec": "docs/feature/api-coverage-gaps/feature.md"
+    },
+    {
+      "id": "acg-4",
+      "title": "--all auto-pagination on analytics query",
+      "phase": "features",
+      "depends_on": [
+        "acg-2",
+        "acg-3"
+      ],
+      "status": "done",
+      "agent_type": "general-purpose",
+      "prd_refs": [
+        "FR-004"
+      ],
+      "spec": "docs/feature/api-coverage-gaps/feature.md"
+    },
+    {
+      "id": "acg-5",
+      "title": "Repeatable --filter-group (OR-of-AND)",
+      "phase": "features",
+      "depends_on": [
+        "acg-4"
+      ],
+      "status": "done",
+      "agent_type": "general-purpose",
+      "prd_refs": [
+        "FR-005"
+      ],
+      "spec": "docs/feature/api-coverage-gaps/feature.md"
+    },
+    {
+      "id": "acg-6",
+      "title": "README + help text updates",
+      "phase": "polish",
+      "depends_on": [
+        "acg-1",
+        "acg-5"
+      ],
+      "status": "done",
+      "agent_type": "general-purpose",
+      "prd_refs": [
+        "FR-006"
+      ],
+      "spec": "docs/feature/api-coverage-gaps/feature.md"
     }
   ]
 }
