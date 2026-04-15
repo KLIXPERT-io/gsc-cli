@@ -371,6 +371,66 @@
         "FR-006"
       ],
       "spec": "docs/feature/api-coverage-gaps/feature.md"
+    },
+    {
+      "id": "ra-1",
+      "title": "GoReleaser config for 5 targets (linux/darwin amd64+arm64, windows amd64)",
+      "phase": "foundation",
+      "depends_on": [],
+      "status": "done",
+      "agent_type": "self",
+      "prd_refs": ["FR-001"],
+      "spec": "docs/feature/release-automation/feature.md"
+    },
+    {
+      "id": "ra-2",
+      "title": "Tag-triggered GitHub Actions release workflow",
+      "phase": "feature",
+      "depends_on": ["ra-1"],
+      "status": "done",
+      "agent_type": "self",
+      "prd_refs": ["FR-002"],
+      "spec": "docs/feature/release-automation/feature.md"
+    },
+    {
+      "id": "ra-3",
+      "title": "install.sh one-liner for macOS/Linux with checksum verify",
+      "phase": "feature",
+      "depends_on": ["ra-1"],
+      "status": "done",
+      "agent_type": "self",
+      "prd_refs": ["FR-003"],
+      "spec": "docs/feature/release-automation/feature.md"
+    },
+    {
+      "id": "ra-4",
+      "title": "install.ps1 one-liner for Windows with checksum verify",
+      "phase": "feature",
+      "depends_on": ["ra-1"],
+      "status": "done",
+      "agent_type": "self",
+      "prd_refs": ["FR-004"],
+      "spec": "docs/feature/release-automation/feature.md"
+    },
+    {
+      "id": "ra-5",
+      "title": "INSTALL.md covering all install paths",
+      "phase": "polish",
+      "depends_on": ["ra-3", "ra-4"],
+      "status": "done",
+      "agent_type": "self",
+      "prd_refs": ["FR-005"],
+      "spec": "docs/feature/release-automation/feature.md"
+    },
+    {
+      "id": "ra-6",
+      "title": "README install section + release badge",
+      "phase": "polish",
+      "depends_on": ["ra-5"],
+      "status": "done",
+      "agent_type": "self",
+      "prd_refs": ["FR-006"],
+      "spec": "docs/feature/release-automation/feature.md"
     }
   ]
 }

@@ -23,6 +23,7 @@ builds:
         goarch: arm64
     ldflags:
       - -s -w -X main.version={{.Version}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
   - id: default
@@ -37,6 +38,9 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
+    files:
+      - README.md
+      - LICENSE*
 
 checksum:
   name_template: "checksums.txt"
@@ -56,5 +60,5 @@ release:
   github:
     owner: KLIXPERT-io
     name: gsc-cli
-  draft: true
+  draft: false
   prerelease: auto

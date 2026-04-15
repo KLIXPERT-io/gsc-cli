@@ -1,4 +1,4 @@
-.PHONY: build vet test install clean release-snapshot
+.PHONY: build vet test install clean release release-snapshot
 
 VERSION ?= dev
 
@@ -19,3 +19,6 @@ clean:
 
 release-snapshot:
 	goreleaser release --snapshot --clean
+
+release:
+	goreleaser release --clean

@@ -1,5 +1,7 @@
 # gsc — Google Search Console CLI
 
+[![Latest release](https://img.shields.io/github/v/release/KLIXPERT-io/gsc-cli?sort=semver)](https://github.com/KLIXPERT-io/gsc-cli/releases/latest)
+
 A fast, LLM-friendly Go CLI that wraps the Google Search Console API v1.
 
 - Single static binary, <25MB, cold-start <50ms on cache hits.
@@ -10,11 +12,19 @@ A fast, LLM-friendly Go CLI that wraps the Google Search Console API v1.
 
 ## Install
 
+macOS / Linux:
+
 ```bash
-go install github.com/KLIXPERT-io/gsc-cli/cmd/gsc@latest
+curl -fsSL https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.sh | sh
 ```
 
-Or download a release from the [Releases page](https://github.com/KLIXPERT-io/gsc-cli/releases).
+Windows (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.ps1 | iex
+```
+
+Or `go install github.com/KLIXPERT-io/gsc-cli/cmd/gsc@latest`. See [INSTALL.md](./INSTALL.md) for manual downloads, version pinning, and checksum verification.
 
 ## Setup
 
