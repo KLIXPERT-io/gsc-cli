@@ -2,7 +2,7 @@
 # install.sh — install the gsc CLI on macOS or Linux.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/refs/heads/main/install.sh | sh
 #
 # Env vars:
 #   GSC_VERSION   pin a release tag (e.g. v1.2.3); default: latest

@@ -5,7 +5,7 @@ Pick the path that fits your platform. All install methods deliver the same stat
 ## macOS / Linux — one-liner
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/refs/heads/main/install.sh | sh
 ```
 
 The installer detects your OS (`linux` / `darwin`) and architecture (`amd64` / `arm64`), downloads the latest release archive plus `checksums.txt`, verifies the SHA-256, and installs `gsc` to `/usr/local/bin` (if writable) or `~/.local/bin`.
@@ -14,7 +14,7 @@ Pin a version or override the install location:
 
 ```sh
 GSC_VERSION=v1.2.3 INSTALL_DIR="$HOME/bin" \
-  curl -fsSL https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.sh | sh
+  curl -fsSL https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/refs/heads/main/install.sh | sh
 ```
 
 Run `sh install.sh --help` for the full list of options.
@@ -22,7 +22,7 @@ Run `sh install.sh --help` for the full list of options.
 ## Windows — one-liner (PowerShell 5.1+)
 
 ```powershell
-irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/refs/heads/main/install.ps1 | iex
 ```
 
 Installs `gsc.exe` to `%LOCALAPPDATA%\Programs\gsc\` (no admin required). Override with environment variables:
@@ -30,7 +30,7 @@ Installs `gsc.exe` to `%LOCALAPPDATA%\Programs\gsc\` (no admin required). Overri
 ```powershell
 $env:GSC_VERSION = 'v1.2.3'
 $env:INSTALL_DIR = "$env:USERPROFILE\bin"
-irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/refs/heads/main/install.ps1 | iex
 ```
 
 > The first run may show a SmartScreen warning because the binary is not (yet) Authenticode-signed. Choose "Run anyway" — or verify the SHA-256 manually (see below).
@@ -79,12 +79,12 @@ shasum -a 256 -c checksums.txt --ignore-missing
 ## Pinning a version
 
 ```sh
-GSC_VERSION=v1.2.3 curl -fsSL https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.sh | sh
+GSC_VERSION=v1.2.3 curl -fsSL https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/refs/heads/main/install.sh | sh
 ```
 
 ```powershell
 $env:GSC_VERSION = 'v1.2.3'
-irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/refs/heads/main/install.ps1 | iex
 ```
 
 ## Auto-Update

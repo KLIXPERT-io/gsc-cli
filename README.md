@@ -15,13 +15,13 @@ A fast, LLM-friendly Go CLI that wraps the Google Search Console API v1.
 macOS / Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/refs/heads/main/install.sh | sh
 ```
 
 Windows (PowerShell):
 
 ```powershell
-irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/refs/heads/main/install.ps1 | iex
 ```
 
 Or `go install github.com/KLIXPERT-io/gsc-cli/cmd/gsc@latest`. See [INSTALL.md](./INSTALL.md) for manual downloads, version pinning, and checksum verification.

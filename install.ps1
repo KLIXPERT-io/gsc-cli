@@ -1,7 +1,7 @@
 # install.ps1 — install the gsc CLI on Windows (PowerShell 5.1+).
 #
 # Usage:
-#   irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/refs/heads/main/install.ps1 | iex
 #
 # Env vars:
 #   $env:GSC_VERSION   pin a release tag (e.g. v1.2.3); default: latest
