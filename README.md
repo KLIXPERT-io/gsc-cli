@@ -28,6 +28,16 @@ Or `go install github.com/KLIXPERT-io/gsc-cli/cmd/gsc@latest`. See [INSTALL.md](
 
 After install, `gsc` keeps itself up to date in the background — see [INSTALL.md](./INSTALL.md#auto-update) for details and how to opt out.
 
+## Use with local LLM agents (Claude, Gemini, …)
+
+`gsc` ships an agent skill that teaches LLM coding agents how to drive the CLI safely (commands, flags, JSON envelope, exit codes, quota awareness). Install it into any tool that supports the [`skills`](https://github.com/anthropics/skills) format:
+
+```bash
+npx skills add https://github.com/KLIXPERT-io/gsc-cli/skills --skill gsc-cli
+```
+
+This drops `gsc-cli/SKILL.md` into your agent's skill directory (Claude Code, Gemini CLI, etc.). Re-run any time to pull updates.
+
 ## Setup
 
 1. Create a Google Cloud project. Enable the **Search Console API**.
