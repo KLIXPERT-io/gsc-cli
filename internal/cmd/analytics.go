@@ -104,16 +104,17 @@ func compareRange(start, end, mode string) (string, string, error) {
 func newAnalyticsQueryCmd() *cobra.Command {
 	var rf rangeFlags
 	var (
-		dimensions string
-		filters    []string
-		searchType string
-		limit      int64
-		orderBy    string
-		asc         bool
-		groupBy     string
-		aggregation string
-		dataState   string
-		all         bool
+		dimensions   string
+		filters      []string
+		filterGroups []string
+		searchType   string
+		limit        int64
+		orderBy      string
+		asc          bool
+		groupBy      string
+		aggregation  string
+		dataState    string
+		all          bool
 	)
 	c := &cobra.Command{
 		Use:   "query <url>",
@@ -164,11 +165,34 @@ Examples:
 			if all && limit > 25000 {
 				limit = 25000
 			}
+			if len(filters) > 0 && len(filterGroups) > 0 {
+				return errs.New(errs.CodeInvalidArgs, "--filter and --filter-group are mutually exclusive").WithHint("--filter-group is a superset; express single AND groups there.")
+			}
+			parsedGroups := make([][]*searchconsole.ApiDimensionFilter, 0, len(filterGroups))
+			for i, g := range filterGroups {
+				parts := strings.Split(g, ",")
+				group := make([]*searchconsole.ApiDimensionFilter, 0, len(parts))
+				for _, p := range parts {
+					p = strings.TrimSpace(p)
+					if p == "" {
+						return errs.New(errs.CodeInvalidArgs, fmt.Sprintf("invalid --filter-group[%d]: empty filter expression", i))
+					}
+					df, err := parseFilter(p)
+					if err != nil {
+						return errs.New(errs.CodeInvalidArgs, fmt.Sprintf("invalid --filter-group[%d]: %s", i, err.Error()))
+					}
+					group = append(group, df)
+				}
+				if len(group) == 0 {
+					return errs.New(errs.CodeInvalidArgs, fmt.Sprintf("invalid --filter-group[%d]: empty group", i))
+				}
+				parsedGroups = append(parsedGroups, group)
+			}
 			cc, identity, err := s.buildClient(ctx)
 			if err != nil {
 				return err
 			}
-			keyArgs := []string{start, end, strings.Join(dims, ","), strings.Join(filters, "|"), searchType, orderBy, fmt.Sprintf("%d", limit), fmt.Sprintf("%v", asc), rf.Compare, aggregation, dataState, fmt.Sprintf("all=%v", all)}
+			keyArgs := []string{start, end, strings.Join(dims, ","), strings.Join(filters, "|"), strings.Join(filterGroups, "|"), searchType, orderBy, fmt.Sprintf("%d", limit), fmt.Sprintf("%v", asc), rf.Compare, aggregation, dataState, fmt.Sprintf("all=%v", all)}
 			key := cache.Key("analytics.query", keyArgs, siteURL, identity)
 			data, meta, err := cachedOrCall(ctx, s, key, 15*time.Minute, func(ctx context.Context) (json.RawMessage, error) {
 				if all {
@@ -176,7 +200,7 @@ Examples:
 					var aggType string
 					var startRow int64 = 0
 					for {
-						req, err := buildAnalyticsRequest(start, end, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation, startRow)
+						req, err := buildAnalyticsRequest(start, end, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation, startRow, parsedGroups)
 						if err != nil {
 							return nil, err
 						}
@@ -197,7 +221,7 @@ Examples:
 					result := map[string]any{"rows": merged, "responseAggregationType": aggType}
 					return json.Marshal(result)
 				}
-				req, err := buildAnalyticsRequest(start, end, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation, 0)
+				req, err := buildAnalyticsRequest(start, end, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation, 0, parsedGroups)
 				if err != nil {
 					return nil, err
 				}
@@ -211,7 +235,7 @@ Examples:
 					if err != nil {
 						return nil, err
 					}
-					creq, _ := buildAnalyticsRequest(cs, ce, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation, 0)
+					creq, _ := buildAnalyticsRequest(cs, ce, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation, 0, parsedGroups)
 					cresp, err := runQuery(ctx, s, cc, siteURL, creq)
 					if err != nil {
 						return nil, err
@@ -254,6 +278,7 @@ Examples:
 	addRangeFlags(c, &rf)
 	c.Flags().StringVar(&dimensions, "dimensions", "", "comma list: query,page,country,device,searchAppearance,date (default query)")
 	c.Flags().StringArrayVar(&filters, "filter", nil, "filter: <dim><op><value> where op is = != ~ !~ (repeatable)")
+	c.Flags().StringArrayVar(&filterGroups, "filter-group", nil, "OR-of-AND filter group: comma-separated filters form one AND group; repeat flag for OR (mutually exclusive with --filter)")
 	c.Flags().StringVar(&searchType, "search-type", "web", "web|image|video|news|discover|googleNews")
 	c.Flags().Int64Var(&limit, "limit", 20, "row limit (max 25000)")
 	c.Flags().StringVar(&orderBy, "order-by", "clicks", "clicks|impressions|ctr|position")
@@ -304,7 +329,7 @@ Examples:
 			}
 			key := cache.Key("analytics.overview", []string{start, end, searchType, rf.Compare, aggregation, dataState}, siteURL, identity)
 			data, meta, err := cachedOrCall(ctx, s, key, 15*time.Minute, func(ctx context.Context) (json.RawMessage, error) {
-				req, _ := buildAnalyticsRequest(start, end, nil, nil, searchType, 1, "clicks", false, dataState, aggregation, 0)
+				req, _ := buildAnalyticsRequest(start, end, nil, nil, searchType, 1, "clicks", false, dataState, aggregation, 0, nil)
 				if err := s.Quota.BumpSA(); err != nil {
 					return nil, errs.New(errs.CodeRateLimited, err.Error())
 				}
@@ -325,7 +350,7 @@ Examples:
 					if err != nil {
 						return nil, err
 					}
-					creq, _ := buildAnalyticsRequest(cs, ce, nil, nil, searchType, 1, "clicks", false, dataState, aggregation, 0)
+					creq, _ := buildAnalyticsRequest(cs, ce, nil, nil, searchType, 1, "clicks", false, dataState, aggregation, 0, nil)
 					if err := s.Quota.BumpSA(); err != nil {
 						return nil, errs.New(errs.CodeRateLimited, err.Error())
 					}
@@ -377,7 +402,7 @@ func runQuery(ctx context.Context, s *State, cc *client.Client, siteURL string, 
 	return resp, nil
 }
 
-func buildAnalyticsRequest(start, end string, dims []string, filters []string, searchType string, limit int64, orderBy string, asc bool, dataState string, aggregation string, startRow int64) (*searchconsole.SearchAnalyticsQueryRequest, error) {
+func buildAnalyticsRequest(start, end string, dims []string, filters []string, searchType string, limit int64, orderBy string, asc bool, dataState string, aggregation string, startRow int64, filterGroups [][]*searchconsole.ApiDimensionFilter) (*searchconsole.SearchAnalyticsQueryRequest, error) {
 	req := &searchconsole.SearchAnalyticsQueryRequest{
 		StartDate:  start,
 		EndDate:    end,
@@ -386,7 +411,13 @@ func buildAnalyticsRequest(start, end string, dims []string, filters []string, s
 		RowLimit:   limit,
 		StartRow:   startRow,
 	}
-	if len(filters) > 0 {
+	if len(filterGroups) > 0 {
+		groups := make([]*searchconsole.ApiDimensionFilterGroup, 0, len(filterGroups))
+		for _, g := range filterGroups {
+			groups = append(groups, &searchconsole.ApiDimensionFilterGroup{GroupType: "and", Filters: g})
+		}
+		req.DimensionFilterGroups = groups
+	} else if len(filters) > 0 {
 		fg := &searchconsole.ApiDimensionFilterGroup{GroupType: "and"}
 		for _, f := range filters {
 			df, err := parseFilter(f)
