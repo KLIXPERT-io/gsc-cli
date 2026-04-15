@@ -1,0 +1,20 @@
+# Binaries
+/gsc
+/dist/
+*.exe
+*.test
+*.out
+
+# Local state created by the CLI
+.gsc/
+
+# Local credentials (must never be committed)
+client_secrets.json
+credentials.json
+token.json
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
