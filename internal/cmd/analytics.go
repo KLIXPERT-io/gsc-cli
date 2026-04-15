@@ -113,6 +113,7 @@ func newAnalyticsQueryCmd() *cobra.Command {
 		groupBy     string
 		aggregation string
 		dataState   string
+		all         bool
 	)
 	c := &cobra.Command{
 		Use:   "query <url>",
@@ -157,23 +158,52 @@ Examples:
 			default:
 				return errs.New(errs.CodeInvalidArgs, "--data-state must be one of: final, all")
 			}
-			req, err := buildAnalyticsRequest(start, end, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation)
-			if err != nil {
-				return err
+			if all && rf.Compare != "" {
+				return errs.New(errs.CodeInvalidArgs, "--all and --compare are mutually exclusive")
+			}
+			if all && limit > 25000 {
+				limit = 25000
 			}
 			cc, identity, err := s.buildClient(ctx)
 			if err != nil {
 				return err
 			}
-			keyArgs := []string{start, end, strings.Join(dims, ","), strings.Join(filters, "|"), searchType, orderBy, fmt.Sprintf("%d", limit), fmt.Sprintf("%v", asc), rf.Compare, aggregation, dataState}
+			keyArgs := []string{start, end, strings.Join(dims, ","), strings.Join(filters, "|"), searchType, orderBy, fmt.Sprintf("%d", limit), fmt.Sprintf("%v", asc), rf.Compare, aggregation, dataState, fmt.Sprintf("all=%v", all)}
 			key := cache.Key("analytics.query", keyArgs, siteURL, identity)
 			data, meta, err := cachedOrCall(ctx, s, key, 15*time.Minute, func(ctx context.Context) (json.RawMessage, error) {
-				if err := s.Quota.BumpSA(); err != nil {
-					return nil, errs.New(errs.CodeRateLimited, err.Error())
+				if all {
+					var merged []*searchconsole.ApiDataRow
+					var aggType string
+					var startRow int64 = 0
+					for {
+						req, err := buildAnalyticsRequest(start, end, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation, startRow)
+						if err != nil {
+							return nil, err
+						}
+						resp, err := runQuery(ctx, s, cc, siteURL, req)
+						if err != nil {
+							return nil, err
+						}
+						if aggType == "" {
+							aggType = resp.ResponseAggregationType
+						}
+						merged = append(merged, resp.Rows...)
+						n := int64(len(resp.Rows))
+						if n == 0 || n < limit {
+							break
+						}
+						startRow += limit
+					}
+					result := map[string]any{"rows": merged, "responseAggregationType": aggType}
+					return json.Marshal(result)
 				}
-				resp, err := cc.Svc.Searchanalytics.Query(siteURL, req).Context(ctx).Do()
+				req, err := buildAnalyticsRequest(start, end, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation, 0)
 				if err != nil {
-					return nil, client.Translate(err)
+					return nil, err
+				}
+				resp, err := runQuery(ctx, s, cc, siteURL, req)
+				if err != nil {
+					return nil, err
 				}
 				result := map[string]any{"rows": resp.Rows, "responseAggregationType": resp.ResponseAggregationType}
 				if rf.Compare != "" {
@@ -181,13 +211,10 @@ Examples:
 					if err != nil {
 						return nil, err
 					}
-					creq, _ := buildAnalyticsRequest(cs, ce, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation)
-					if err := s.Quota.BumpSA(); err != nil {
-						return nil, errs.New(errs.CodeRateLimited, err.Error())
-					}
-					cresp, err := cc.Svc.Searchanalytics.Query(siteURL, creq).Context(ctx).Do()
+					creq, _ := buildAnalyticsRequest(cs, ce, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation, 0)
+					cresp, err := runQuery(ctx, s, cc, siteURL, creq)
 					if err != nil {
-						return nil, client.Translate(err)
+						return nil, err
 					}
 					result["comparison"] = map[string]any{
 						"start": cs, "end": ce, "mode": rf.Compare,
@@ -234,6 +261,7 @@ Examples:
 	c.Flags().StringVar(&groupBy, "group-by", "", "shortcut to add a dimension (e.g. --group-by date for time-series)")
 	c.Flags().StringVar(&aggregation, "aggregation", "auto", "aggregation type: auto|byPage|byProperty")
 	c.Flags().StringVar(&dataState, "data-state", "final", "data freshness: final|all (all includes last ~2 days, not finalized)")
+	c.Flags().BoolVar(&all, "all", false, "auto-paginate until all rows fetched (uses --limit as page size, clamps to 25000; incompatible with --compare)")
 	return c
 }
 
@@ -276,7 +304,7 @@ Examples:
 			}
 			key := cache.Key("analytics.overview", []string{start, end, searchType, rf.Compare, aggregation, dataState}, siteURL, identity)
 			data, meta, err := cachedOrCall(ctx, s, key, 15*time.Minute, func(ctx context.Context) (json.RawMessage, error) {
-				req, _ := buildAnalyticsRequest(start, end, nil, nil, searchType, 1, "clicks", false, dataState, aggregation)
+				req, _ := buildAnalyticsRequest(start, end, nil, nil, searchType, 1, "clicks", false, dataState, aggregation, 0)
 				if err := s.Quota.BumpSA(); err != nil {
 					return nil, errs.New(errs.CodeRateLimited, err.Error())
 				}
@@ -297,7 +325,7 @@ Examples:
 					if err != nil {
 						return nil, err
 					}
-					creq, _ := buildAnalyticsRequest(cs, ce, nil, nil, searchType, 1, "clicks", false, dataState, aggregation)
+					creq, _ := buildAnalyticsRequest(cs, ce, nil, nil, searchType, 1, "clicks", false, dataState, aggregation, 0)
 					if err := s.Quota.BumpSA(); err != nil {
 						return nil, errs.New(errs.CodeRateLimited, err.Error())
 					}
@@ -338,13 +366,25 @@ Examples:
 	return c
 }
 
-func buildAnalyticsRequest(start, end string, dims []string, filters []string, searchType string, limit int64, orderBy string, asc bool, dataState string, aggregation string) (*searchconsole.SearchAnalyticsQueryRequest, error) {
+func runQuery(ctx context.Context, s *State, cc *client.Client, siteURL string, req *searchconsole.SearchAnalyticsQueryRequest) (*searchconsole.SearchAnalyticsQueryResponse, error) {
+	if err := s.Quota.BumpSA(); err != nil {
+		return nil, errs.New(errs.CodeRateLimited, err.Error())
+	}
+	resp, err := cc.Svc.Searchanalytics.Query(siteURL, req).Context(ctx).Do()
+	if err != nil {
+		return nil, client.Translate(err)
+	}
+	return resp, nil
+}
+
+func buildAnalyticsRequest(start, end string, dims []string, filters []string, searchType string, limit int64, orderBy string, asc bool, dataState string, aggregation string, startRow int64) (*searchconsole.SearchAnalyticsQueryRequest, error) {
 	req := &searchconsole.SearchAnalyticsQueryRequest{
 		StartDate:  start,
 		EndDate:    end,
 		Dimensions: dims,
 		SearchType: searchType,
 		RowLimit:   limit,
+		StartRow:   startRow,
 	}
 	if len(filters) > 0 {
 		fg := &searchconsole.ApiDimensionFilterGroup{GroupType: "and"}
