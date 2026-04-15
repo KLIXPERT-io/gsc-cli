@@ -14,11 +14,13 @@ const (
 	CodeAuthMissing     Code = "auth_missing"
 	CodeAuthExpired     Code = "auth_expired"
 	CodeAuthDenied      Code = "auth_denied"
+	CodeAuthRequired    Code = "auth_required"
 	CodeQuotaExceeded   Code = "quota_exceeded"
 	CodeRateLimited     Code = "rate_limited"
 	CodePropertyNotFound Code = "property_not_found"
 	CodeSitemapNotFound Code = "sitemap_not_found"
 	CodeURLNotIndexed   Code = "url_not_indexed"
+	CodeNotFound        Code = "not_found"
 	CodeInvalidArgs     Code = "invalid_args"
 	CodeInvalidDateRange Code = "invalid_date_range"
 	CodeNetworkUnreachable Code = "network_unreachable"
@@ -52,11 +54,11 @@ func ExitCode(err error) int {
 		return 1
 	}
 	switch e.Code {
-	case CodeAuthMissing, CodeAuthExpired, CodeAuthDenied:
+	case CodeAuthMissing, CodeAuthExpired, CodeAuthDenied, CodeAuthRequired:
 		return 2
 	case CodeQuotaExceeded, CodeRateLimited:
 		return 3
-	case CodePropertyNotFound, CodeSitemapNotFound, CodeURLNotIndexed:
+	case CodePropertyNotFound, CodeSitemapNotFound, CodeURLNotIndexed, CodeNotFound:
 		return 4
 	case CodeInvalidArgs, CodeInvalidDateRange:
 		return 5

@@ -25,6 +25,8 @@ type Defaults struct {
 type Cache struct {
 	Dir        string `toml:"dir"`
 	DefaultTTL string `toml:"default_ttl"`
+	TTLPSI     string `toml:"ttl_psi"`
+	TTLCrUX    string `toml:"ttl_crux"`
 }
 
 type Logging struct {
@@ -46,7 +48,7 @@ type Config struct {
 func Default() *Config {
 	return &Config{
 		Defaults:   Defaults{Output: "json", Range: "last-28d"},
-		Cache:      Cache{Dir: "./.gsc/cache", DefaultTTL: "15m"},
+		Cache:      Cache{Dir: "./.gsc/cache", DefaultTTL: "15m", TTLPSI: "24h", TTLCrUX: "24h"},
 		Logging:    Logging{Format: "text"},
 		AutoUpdate: true,
 	}
@@ -130,6 +132,24 @@ func (c *Config) TTL() time.Duration {
 	return d
 }
 
+// PSITTL returns the PSI cache TTL (default 24h).
+func (c *Config) PSITTL() time.Duration {
+	d, err := time.ParseDuration(strings.TrimSpace(c.Cache.TTLPSI))
+	if err != nil || d <= 0 {
+		return 24 * time.Hour
+	}
+	return d
+}
+
+// CruxTTL returns the CrUX cache TTL (default 24h).
+func (c *Config) CruxTTL() time.Duration {
+	d, err := time.ParseDuration(strings.TrimSpace(c.Cache.TTLCrUX))
+	if err != nil || d <= 0 {
+		return 24 * time.Hour
+	}
+	return d
+}
+
 // Get returns the value at dotted key (e.g. "auth.credentials_path").
 func (c *Config) Get(key string) (string, bool) {
 	switch key {
@@ -145,6 +165,10 @@ func (c *Config) Get(key string) (string, bool) {
 		return c.Cache.Dir, true
 	case "cache.default_ttl":
 		return c.Cache.DefaultTTL, true
+	case "cache.ttl_psi":
+		return c.Cache.TTLPSI, true
+	case "cache.ttl_crux":
+		return c.Cache.TTLCrUX, true
 	case "logging.verbose":
 		return fmt.Sprintf("%v", c.Logging.Verbose), true
 	case "logging.format":
@@ -171,6 +195,16 @@ func (c *Config) Set(key, value string) error {
 			return fmt.Errorf("invalid duration: %q", value)
 		}
 		c.Cache.DefaultTTL = value
+	case "cache.ttl_psi":
+		if _, err := time.ParseDuration(value); err != nil {
+			return fmt.Errorf("invalid duration: %q", value)
+		}
+		c.Cache.TTLPSI = value
+	case "cache.ttl_crux":
+		if _, err := time.ParseDuration(value); err != nil {
+			return fmt.Errorf("invalid duration: %q", value)
+		}
+		c.Cache.TTLCrUX = value
 	case "logging.verbose":
 		c.Logging.Verbose = value == "true" || value == "1"
 	case "logging.format":
@@ -193,6 +227,8 @@ func Keys() []string {
 		"defaults.range",
 		"cache.dir",
 		"cache.default_ttl",
+		"cache.ttl_psi",
+		"cache.ttl_crux",
 		"logging.verbose",
 		"logging.format",
 	}

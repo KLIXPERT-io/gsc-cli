@@ -529,6 +529,26 @@
         "FR-006"
       ],
       "spec": "docs/feature/auto-update/feature.md"
+    },
+    {
+      "id": "pc-1",
+      "title": "PageSpeed + CrUX commands, clients, quota buckets, error mapping (FR-001..FR-006)",
+      "phase": "feature",
+      "depends_on": [],
+      "status": "done",
+      "agent_type": "general-purpose",
+      "prd_refs": ["FR-001", "FR-002", "FR-003", "FR-004", "FR-005", "FR-006"],
+      "spec": "docs/feature/pagespeed-crux/feature.md"
+    },
+    {
+      "id": "pc-2",
+      "title": "README + help updates for pagespeed/crux/cwv (FR-007)",
+      "phase": "polish",
+      "depends_on": ["pc-1"],
+      "status": "done",
+      "agent_type": "general-purpose",
+      "prd_refs": ["FR-007"],
+      "spec": "docs/feature/pagespeed-crux/feature.md"
     }
   ]
 }

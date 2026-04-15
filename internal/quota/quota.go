@@ -16,6 +16,7 @@ import (
 const (
 	URLInspectionDailyLimit = 2000
 	SearchAnalyticsQPM      = 1200
+	PSIDailyLimit           = 25000
 )
 
 type Counters struct {
@@ -23,6 +24,8 @@ type Counters struct {
 	URLInspection    int       `json:"url_inspection"`
 	SearchAnalytics  int       `json:"search_analytics"` // all-time since reset (info only)
 	Other            int       `json:"other"`
+	PSI              int       `json:"psi"`
+	CRUX             int       `json:"crux"`
 	LastWarnedAt     int       `json:"last_warned_at"` // last url_inspection count at which we warned
 	// RecentSA is not persisted across restarts; FR acceptable best-effort.
 }
@@ -126,6 +129,10 @@ func (s *Store) Bump(category string, n int) error {
 			c.SearchAnalytics += n
 		case "other":
 			c.Other += n
+		case "psi":
+			c.PSI += n
+		case "crux":
+			c.CRUX += n
 		default:
 			return fmt.Errorf("unknown quota category: %s", category)
 		}

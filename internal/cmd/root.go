@@ -4,6 +4,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
@@ -51,6 +52,19 @@ func getState(cmd *cobra.Command) *State {
 
 // buildClient returns an authed API client, refreshing tokens on the fly.
 func (s *State) buildClient(ctx context.Context) (*client.Client, string, error) {
+	httpClient, identity, err := s.buildHTTPClient(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	c, err := client.New(ctx, httpClient)
+	if err != nil {
+		return nil, "", client.Translate(err)
+	}
+	return c, identity, nil
+}
+
+// buildHTTPClient returns a raw OAuth-authed *http.Client and the user identity.
+func (s *State) buildHTTPClient(ctx context.Context) (*http.Client, string, error) {
 	credsPath := s.CredsPath
 	if credsPath == "" {
 		credsPath = os.Getenv("GSC_CREDENTIALS")
@@ -69,11 +83,7 @@ func (s *State) buildClient(ctx context.Context) (*client.Client, string, error)
 	}
 	tok, _ := auth.LoadToken()
 	identity := auth.Identity(cfg, tok)
-	c, err := client.New(ctx, httpClient)
-	if err != nil {
-		return nil, "", client.Translate(err)
-	}
-	return c, identity, nil
+	return httpClient, identity, nil
 }
 
 // Execute builds and runs the root command.
@@ -140,6 +150,9 @@ locally, tracks quota, and emits machine-readable errors for LLM agents.`,
 		newSitemapsCmd(),
 		newQuotaCmd(),
 		newConfigCmd(),
+		newPagespeedCmd(),
+		newCruxCmd(),
+		newCwvCmd(),
 		newUpdateCmd(version),
 	)
 

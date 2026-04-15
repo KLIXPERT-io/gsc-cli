@@ -99,6 +99,37 @@ gsc sitemaps remove sc-domain:example.com https://www.example.com/sitemap.xml --
 gsc quota
 ```
 
+## Performance & Core Web Vitals
+
+`gsc` wraps the **PageSpeed Insights** (Lighthouse + field data) and **Chrome UX Report** (real-user CWV, current + historical) APIs, plus a convenience `gsc cwv` that picks the right source and prints a pass/fail summary.
+
+Both APIs must be enabled in the GCP project backing your OAuth client. Turn them on at [console.cloud.google.com/apis/library](https://console.cloud.google.com/apis/library) — search for "PageSpeed Insights API" and "Chrome UX Report API". On a 403 `SERVICE_DISABLED` the CLI surfaces a direct link.
+
+```bash
+# One-shot CWV triage for a URL (mobile by default, falls back to origin on 404)
+gsc cwv https://example.com/pricing
+
+# Fail CI when any metric is poor
+gsc cwv https://example.com/pricing --fail-on poor
+
+# Desktop form-factor, JSON output
+gsc cwv https://example.com/ --form-factor desktop --json
+
+# Full Lighthouse + field-data audit (mobile strategy)
+gsc pagespeed run https://example.com/pricing
+
+# Desktop run, restrict to the categories you care about
+gsc pagespeed run https://example.com/ --strategy desktop --category performance,seo
+
+# Current CrUX record at origin level, phone form-factor only
+gsc crux query https://example.com --origin --form-factor phone
+
+# 12 weekly collection periods of LCP + INP (table form)
+gsc crux history https://example.com/ --metric lcp,inp --weeks 12
+```
+
+Quota buckets `psi` (25,000/day) and `crux` (150 QPS best-effort) are tracked alongside the GSC buckets — inspect with `gsc quota`. Cache TTLs default to 24h and are tunable via `cache.ttl_psi` and `cache.ttl_crux` in `config.toml` (CrUX refreshes monthly; PSI is per-run but rarely needs sub-daily refresh).
+
 ## Output
 
 Every JSON response has the envelope:
