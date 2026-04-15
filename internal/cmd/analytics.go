@@ -109,8 +109,10 @@ func newAnalyticsQueryCmd() *cobra.Command {
 		searchType string
 		limit      int64
 		orderBy    string
-		asc        bool
-		groupBy    string
+		asc         bool
+		groupBy     string
+		aggregation string
+		dataState   string
 	)
 	c := &cobra.Command{
 		Use:   "query <url>",
@@ -145,7 +147,17 @@ Examples:
 			if len(dims) == 0 {
 				dims = []string{"query"}
 			}
-			req, err := buildAnalyticsRequest(start, end, dims, filters, searchType, limit, orderBy, asc)
+			switch aggregation {
+			case "auto", "byPage", "byProperty":
+			default:
+				return errs.New(errs.CodeInvalidArgs, "--aggregation must be one of: auto, byPage, byProperty")
+			}
+			switch dataState {
+			case "final", "all":
+			default:
+				return errs.New(errs.CodeInvalidArgs, "--data-state must be one of: final, all")
+			}
+			req, err := buildAnalyticsRequest(start, end, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation)
 			if err != nil {
 				return err
 			}
@@ -153,7 +165,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			keyArgs := []string{start, end, strings.Join(dims, ","), strings.Join(filters, "|"), searchType, orderBy, fmt.Sprintf("%d", limit), fmt.Sprintf("%v", asc), rf.Compare}
+			keyArgs := []string{start, end, strings.Join(dims, ","), strings.Join(filters, "|"), searchType, orderBy, fmt.Sprintf("%d", limit), fmt.Sprintf("%v", asc), rf.Compare, aggregation, dataState}
 			key := cache.Key("analytics.query", keyArgs, siteURL, identity)
 			data, meta, err := cachedOrCall(ctx, s, key, 15*time.Minute, func(ctx context.Context) (json.RawMessage, error) {
 				if err := s.Quota.BumpSA(); err != nil {
@@ -169,7 +181,7 @@ Examples:
 					if err != nil {
 						return nil, err
 					}
-					creq, _ := buildAnalyticsRequest(cs, ce, dims, filters, searchType, limit, orderBy, asc)
+					creq, _ := buildAnalyticsRequest(cs, ce, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation)
 					if err := s.Quota.BumpSA(); err != nil {
 						return nil, errs.New(errs.CodeRateLimited, err.Error())
 					}
@@ -220,12 +232,16 @@ Examples:
 	c.Flags().StringVar(&orderBy, "order-by", "clicks", "clicks|impressions|ctr|position")
 	c.Flags().BoolVar(&asc, "asc", false, "sort ascending (default descending)")
 	c.Flags().StringVar(&groupBy, "group-by", "", "shortcut to add a dimension (e.g. --group-by date for time-series)")
+	c.Flags().StringVar(&aggregation, "aggregation", "auto", "aggregation type: auto|byPage|byProperty")
+	c.Flags().StringVar(&dataState, "data-state", "final", "data freshness: final|all (all includes last ~2 days, not finalized)")
 	return c
 }
 
 func newAnalyticsOverviewCmd() *cobra.Command {
 	var rf rangeFlags
 	var searchType string
+	var aggregation string
+	var dataState string
 	c := &cobra.Command{
 		Use:   "overview <url>",
 		Short: "Summary performance: totals for clicks/impressions/ctr/position",
@@ -248,9 +264,19 @@ Examples:
 			if err != nil {
 				return err
 			}
-			key := cache.Key("analytics.overview", []string{start, end, searchType, rf.Compare}, siteURL, identity)
+			switch aggregation {
+			case "auto", "byPage", "byProperty":
+			default:
+				return errs.New(errs.CodeInvalidArgs, "--aggregation must be one of: auto, byPage, byProperty")
+			}
+			switch dataState {
+			case "final", "all":
+			default:
+				return errs.New(errs.CodeInvalidArgs, "--data-state must be one of: final, all")
+			}
+			key := cache.Key("analytics.overview", []string{start, end, searchType, rf.Compare, aggregation, dataState}, siteURL, identity)
 			data, meta, err := cachedOrCall(ctx, s, key, 15*time.Minute, func(ctx context.Context) (json.RawMessage, error) {
-				req, _ := buildAnalyticsRequest(start, end, nil, nil, searchType, 1, "clicks", false)
+				req, _ := buildAnalyticsRequest(start, end, nil, nil, searchType, 1, "clicks", false, dataState, aggregation)
 				if err := s.Quota.BumpSA(); err != nil {
 					return nil, errs.New(errs.CodeRateLimited, err.Error())
 				}
@@ -258,7 +284,7 @@ Examples:
 				if err != nil {
 					return nil, client.Translate(err)
 				}
-				out := map[string]any{"start": start, "end": end}
+				out := map[string]any{"start": start, "end": end, "responseAggregationType": resp.ResponseAggregationType}
 				if len(resp.Rows) > 0 {
 					r := resp.Rows[0]
 					out["clicks"] = r.Clicks
@@ -271,7 +297,7 @@ Examples:
 					if err != nil {
 						return nil, err
 					}
-					creq, _ := buildAnalyticsRequest(cs, ce, nil, nil, searchType, 1, "clicks", false)
+					creq, _ := buildAnalyticsRequest(cs, ce, nil, nil, searchType, 1, "clicks", false, dataState, aggregation)
 					if err := s.Quota.BumpSA(); err != nil {
 						return nil, errs.New(errs.CodeRateLimited, err.Error())
 					}
@@ -307,10 +333,12 @@ Examples:
 	}
 	addRangeFlags(c, &rf)
 	c.Flags().StringVar(&searchType, "search-type", "web", "web|image|video|news|discover|googleNews")
+	c.Flags().StringVar(&aggregation, "aggregation", "auto", "aggregation type: auto|byPage|byProperty")
+	c.Flags().StringVar(&dataState, "data-state", "final", "data freshness: final|all (all includes last ~2 days, not finalized)")
 	return c
 }
 
-func buildAnalyticsRequest(start, end string, dims []string, filters []string, searchType string, limit int64, orderBy string, asc bool) (*searchconsole.SearchAnalyticsQueryRequest, error) {
+func buildAnalyticsRequest(start, end string, dims []string, filters []string, searchType string, limit int64, orderBy string, asc bool, dataState string, aggregation string) (*searchconsole.SearchAnalyticsQueryRequest, error) {
 	req := &searchconsole.SearchAnalyticsQueryRequest{
 		StartDate:  start,
 		EndDate:    end,
@@ -328,6 +356,15 @@ func buildAnalyticsRequest(start, end string, dims []string, filters []string, s
 			fg.Filters = append(fg.Filters, df)
 		}
 		req.DimensionFilterGroups = []*searchconsole.ApiDimensionFilterGroup{fg}
+	}
+	if aggregation != "" {
+		req.AggregationType = aggregation
+	}
+	if dataState != "" {
+		if dataState != "final" && dataState != "all" {
+			return nil, errs.New(errs.CodeInvalidArgs, "--data-state must be one of: final, all")
+		}
+		req.DataState = dataState
 	}
 	_ = orderBy
 	_ = asc

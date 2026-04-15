@@ -1,7 +1,7 @@
 {
   "prd": "docs/prd/gsc-cli.md",
   "decisions": {
-    "group_by_date": "yes \u2014 --group-by date shortcut on analytics query",
+    "group_by_date": "yes — --group-by date shortcut on analytics query",
     "audit_log_rotation": "rotate at 10MB",
     "first_run_no_auth": "auto-walk through auth login interactively",
     "token_storage": "keychain-backed (macOS Keychain / linux secret-service), fallback to ~/.config/gsc/token.json with 0600"
@@ -15,7 +15,7 @@
       "status": "done",
       "agent_type": "self",
       "prd_refs": [
-        "\u00a77"
+        "§7"
       ]
     },
     {
@@ -122,7 +122,7 @@
       "status": "done",
       "agent_type": "self",
       "prd_refs": [
-        "\u00a77"
+        "§7"
       ]
     },
     {
@@ -276,8 +276,8 @@
       "status": "done",
       "agent_type": "self",
       "prd_refs": [
-        "\u00a79",
-        "\u00a76"
+        "§9",
+        "§6"
       ]
     },
     {

@@ -3,11 +3,13 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/KLIXPERT-io/gsc-cli/internal/audit"
 	"github.com/KLIXPERT-io/gsc-cli/internal/cache"
 	"github.com/KLIXPERT-io/gsc-cli/internal/client"
+	"github.com/KLIXPERT-io/gsc-cli/internal/errs"
 	"github.com/KLIXPERT-io/gsc-cli/internal/output"
 	"github.com/spf13/cobra"
 	searchconsole "google.golang.org/api/searchconsole/v1"
@@ -15,8 +17,52 @@ import (
 
 func newSitemapsCmd() *cobra.Command {
 	c := &cobra.Command{Use: "sitemaps", Short: "Manage sitemaps for a property"}
-	c.AddCommand(newSitemapsListCmd(), newSitemapsSubmitCmd(), newSitemapsGetCmd())
+	c.AddCommand(newSitemapsListCmd(), newSitemapsSubmitCmd(), newSitemapsGetCmd(), newSitemapsRemoveCmd())
 	return c
+}
+
+func newSitemapsRemoveCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "remove <property> <sitemap-url>",
+		Short: "Remove a sitemap from a property (destructive — requires --yes in non-TTY)",
+		Long: `Removes a submitted sitemap from a property. DESTRUCTIVE.
+
+Without --yes:
+- On a TTY: prompts for the sitemap URL to confirm.
+- In non-TTY (pipes, scripts, agents): exits with code 5.
+
+Examples:
+  gsc sitemaps remove sc-domain:example.com https://www.example.com/sitemap.xml --yes`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+			s := getState(cmd)
+			siteURL, sitemapURL := args[0], args[1]
+			if !s.Yes {
+				if !output.IsTTY(cmd.InOrStdin().(interface{ Fd() uintptr }).Fd()) {
+					return errs.New(errs.CodeInvalidArgs, "confirmation required").WithHint("Pass --yes to confirm in non-TTY contexts.")
+				}
+				cmd.PrintErr("Remove sitemap " + sitemapURL + " from " + siteURL + "? Type the sitemap URL to confirm: ")
+				var answer string
+				_, _ = cmd.InOrStdin().Read([]byte(answer))
+				if strings.TrimSpace(answer) != sitemapURL {
+					return errs.New(errs.CodeInvalidArgs, "confirmation mismatch")
+				}
+			}
+			cc, _, err := s.buildClient(ctx)
+			if err != nil {
+				return err
+			}
+			if err := cc.Svc.Sitemaps.Delete(siteURL, sitemapURL).Context(ctx).Do(); err != nil {
+				_ = s.Audit.Append(audit.Event{Command: "sitemaps.remove", Property: siteURL, Target: sitemapURL, Action: "remove", OK: false, Err: err.Error()})
+				return client.Translate(err)
+			}
+			_ = s.Quota.Bump("other", 1)
+			_ = s.Audit.Append(audit.Event{Command: "sitemaps.remove", Property: siteURL, Target: sitemapURL, Action: "remove", OK: true})
+			_ = s.Cache.Clear()
+			return emit(cmd, map[string]any{"ok": true, "property": siteURL, "sitemap": sitemapURL}, output.Meta{APICalls: 1}, nil, nil)
+		},
+	}
 }
 
 func newSitemapsListCmd() *cobra.Command {
