@@ -1,0 +1,41 @@
+name: Auto Tag & Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tagname: ${{ steps.autotag.outputs.tagname }}
+      tagcreated: ${{ steps.autotag.outputs.tagcreated }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Auto Tag from VERSION file
+        id: autotag
+        uses: butlerlogic/action-autotag@1.1.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          strategy: regex
+          regex_pattern: '([0-9]+\.[0-9]+\.[0-9]+([-\+][\w\.0-9]+)?)'
+          root: "VERSION"
+          tag_prefix: "v"
+
+  release:
+    needs: tag
+    if: needs.tag.outputs.tagcreated == 'yes'
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.tag.outputs.tagname }}
+    permissions:
+      contents: write

@@ -87,6 +87,16 @@ $env:GSC_VERSION = 'v1.2.3'
 irm https://raw.githubusercontent.com/KLIXPERT-io/gsc-cli/main/install.ps1 | iex
 ```
 
+## Cutting a release (maintainers)
+
+The release version lives in the [`VERSION`](./VERSION) file at the repo root. To ship a new release:
+
+1. Bump `VERSION` (e.g. `0.1.0` → `0.2.0`) and merge to `main`.
+2. The `Auto Tag & Release` workflow reads the file, creates a matching `vX.Y.Z` git tag, and triggers the release pipeline (`release.yml`).
+3. GoReleaser builds the 5 archives and publishes a GitHub Release with `checksums.txt`.
+
+Manual fallback: `git tag v0.2.0 && git push --tags` runs the same release pipeline directly.
+
 ## Uninstalling
 
 Delete the binary:
