@@ -17,9 +17,15 @@ type PSI struct {
 	Svc *pagespeedonline.Service
 }
 
-// NewPSI builds a PSI client using the shared OAuth *http.Client.
-func NewPSI(ctx context.Context, httpClient *http.Client) (*PSI, error) {
-	svc, err := pagespeedonline.NewService(ctx, option.WithHTTPClient(httpClient))
+// NewPSI builds a PSI client. If apiKey is non-empty it is used instead of
+// OAuth (higher rate limits); otherwise the httpClient's OAuth credentials
+// are used.
+func NewPSI(ctx context.Context, httpClient *http.Client, apiKey string) (*PSI, error) {
+	opts := []option.ClientOption{option.WithHTTPClient(httpClient)}
+	if apiKey != "" {
+		opts = []option.ClientOption{option.WithAPIKey(apiKey)}
+	}
+	svc, err := pagespeedonline.NewService(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}

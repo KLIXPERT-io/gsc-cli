@@ -70,7 +70,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			p, err := client.NewPSI(ctx, httpClient)
+			p, err := client.NewPSI(ctx, httpClient, psiAPIKey(s))
 			if err != nil {
 				return client.Translate(err)
 			}

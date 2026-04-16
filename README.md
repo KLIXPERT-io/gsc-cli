@@ -40,17 +40,48 @@ This drops `gsc-cli/SKILL.md` into your agent's skill directory (Claude Code, Ge
 
 ## Setup
 
-1. Create a Google Cloud project. Enable the **Search Console API**.
-2. Configure an OAuth consent screen (internal or external).
-3. Create an **OAuth 2.0 Client ID** of type **Desktop app**. Download the `client_secrets.json`.
-4. Tell `gsc` where it is:
+### 1. Create a Google Cloud OAuth client (required)
+
+You need an OAuth 2.0 **client secret** file so `gsc` can authenticate with the Search Console API on your behalf.
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com/) and create a project (or pick an existing one).
+2. **Enable the Search Console API:** navigate to [APIs & Services → Library](https://console.cloud.google.com/apis/library), search for "Google Search Console API", and click **Enable**.
+3. **Configure the OAuth consent screen:** go to [APIs & Services → OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent). Choose "External" (or "Internal" for Workspace orgs), fill in the required fields, and add the scope `https://www.googleapis.com/auth/webmasters.readonly` (or `webmasters` for write access).
+4. **Create credentials:** go to [APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials), click **Create Credentials → OAuth client ID**, select **Desktop app**, and download the resulting `client_secrets.json`.
+5. Point `gsc` at the file and log in:
 
    ```bash
-   gsc config set auth.credentials_path ~/secrets/gsc-client.json
+   gsc config set auth.credentials_path ~/secrets/client_secrets.json
    gsc auth login
    ```
 
    The login flow starts a local loopback server on `127.0.0.1:<random-port>`, opens your browser, and stores tokens in your OS keychain (with a file fallback).
+
+### 2. CrUX API key (required for `gsc cwv` / `gsc crux`)
+
+The Chrome UX Report API uses an **API key** (not OAuth). To set it up:
+
+1. In the same GCP project, enable the **Chrome UX Report API:** [APIs & Services → Library](https://console.cloud.google.com/apis/library/chromeuxreport.googleapis.com) → **Enable**.
+2. Go to [APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials), click **Create Credentials → API key**. Optionally restrict it to the Chrome UX Report API.
+3. Configure `gsc`:
+
+   ```bash
+   gsc config set crux.api_key YOUR_API_KEY
+   # or use an env var:
+   export GSC_CRUX_API_KEY=YOUR_API_KEY
+   ```
+
+### 3. PageSpeed Insights API (optional, for `gsc pagespeed`)
+
+PSI works with the same OAuth credentials, but the API must be enabled:
+
+1. Enable the **PageSpeed Insights API:** [APIs & Services → Library](https://console.cloud.google.com/apis/library/pagespeedonline.googleapis.com) → **Enable**.
+2. Optionally set an API key for higher rate limits (same process as CrUX):
+
+   ```bash
+   gsc config set psi.api_key YOUR_API_KEY
+   # or: export GSC_PSI_API_KEY=YOUR_API_KEY
+   ```
 
 ## Quick tour
 
