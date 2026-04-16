@@ -80,7 +80,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			cc := client.NewCrUX(httpClient)
+			cc := client.NewCrUX(httpClient, cruxAPIKey(s))
 
 			mode := "url"
 			if useOrigin {
@@ -216,7 +216,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			cc := client.NewCrUX(httpClient)
+			cc := client.NewCrUX(httpClient, cruxAPIKey(s))
 
 			mode := "url"
 			if useOrigin {

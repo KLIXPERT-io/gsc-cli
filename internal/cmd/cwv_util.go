@@ -4,11 +4,35 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 
 	"github.com/KLIXPERT-io/gsc-cli/internal/errs"
 )
+
+// cruxAPIKey resolves the CrUX API key from env (preferred) or config.
+func cruxAPIKey(s *State) string {
+	if v := strings.TrimSpace(os.Getenv("GSC_CRUX_API_KEY")); v != "" {
+		return v
+	}
+	if s != nil && s.Cfg != nil {
+		return strings.TrimSpace(s.Cfg.CrUX.APIKey)
+	}
+	return ""
+}
+
+// psiAPIKey resolves the PSI API key from env (preferred) or config.
+// PSI accepts both OAuth and API key; key is optional but unauth'd PSI is rate-limited.
+func psiAPIKey(s *State) string {
+	if v := strings.TrimSpace(os.Getenv("GSC_PSI_API_KEY")); v != "" {
+		return v
+	}
+	if s != nil && s.Cfg != nil {
+		return strings.TrimSpace(s.Cfg.PSI.APIKey)
+	}
+	return ""
+}
 
 // cwvMetricOrder is the canonical display order for CWV metrics.
 func cwvMetricOrder() []string { return []string{"lcp", "inp", "cls", "ttfb"} }

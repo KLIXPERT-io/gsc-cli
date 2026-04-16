@@ -18,12 +18,22 @@ const (
 )
 
 // CrUX is a hand-rolled client against the Chrome UX Report API.
+// The API requires an API key (OAuth is not supported); APIKey is appended
+// as ?key=<value> on every request.
 type CrUX struct {
-	HTTP *http.Client
+	HTTP   *http.Client
+	APIKey string
 }
 
-// NewCrUX returns a CrUX client using the shared OAuth *http.Client.
-func NewCrUX(httpClient *http.Client) *CrUX { return &CrUX{HTTP: httpClient} }
+// NewCrUX returns a CrUX client. The httpClient is only used for transport
+// (timeouts, retries); CrUX rejects OAuth bearer tokens, so an unauthenticated
+// http.DefaultClient is fine.
+func NewCrUX(httpClient *http.Client, apiKey string) *CrUX {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	return &CrUX{HTTP: httpClient, APIKey: apiKey}
+}
 
 // CruxRequest is the request body for queryRecord / queryHistoryRecord.
 type CruxRequest struct {
@@ -134,10 +144,14 @@ func (c *CrUX) QueryHistoryRecord(ctx context.Context, req CruxRequest) (json.Ra
 }
 
 func (c *CrUX) post(ctx context.Context, url string, body any) (json.RawMessage, error) {
+	if c.APIKey == "" {
+		return nil, errs.New(errs.CodeAuthRequired, "CrUX API key required").WithHint("Set GSC_CRUX_API_KEY or run `gsc config set crux.api_key <key>`. Get a key at https://console.cloud.google.com/apis/credentials after enabling the Chrome UX Report API: https://console.cloud.google.com/apis/library/chromeuxreport.googleapis.com")
+	}
 	b, err := json.Marshal(body)
 	if err != nil {
 		return nil, errs.New(errs.CodeGeneric, err.Error())
 	}
+	url = url + "?key=" + c.APIKey
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(b))
 	if err != nil {
 		return nil, errs.New(errs.CodeGeneric, err.Error())

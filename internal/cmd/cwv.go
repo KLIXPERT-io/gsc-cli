@@ -62,7 +62,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			cc := client.NewCrUX(httpClient)
+			cc := client.NewCrUX(httpClient, cruxAPIKey(s))
 
 			tryFetch := func(source string, req client.CruxRequest) (json.RawMessage, output.Meta, error) {
 				key := cache.Key("cwv.query", []string{target, source, ffLower}, "", identity)

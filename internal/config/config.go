@@ -34,11 +34,21 @@ type Logging struct {
 	Format  string `toml:"format"`
 }
 
+type CrUX struct {
+	APIKey string `toml:"api_key"`
+}
+
+type PSI struct {
+	APIKey string `toml:"api_key"`
+}
+
 type Config struct {
 	Auth       Auth     `toml:"auth"`
 	Defaults   Defaults `toml:"defaults"`
 	Cache      Cache    `toml:"cache"`
 	Logging    Logging  `toml:"logging"`
+	CrUX       CrUX     `toml:"crux"`
+	PSI        PSI      `toml:"psi"`
 	AutoUpdate bool     `toml:"auto_update"`
 	// Path the config was loaded from (empty if defaults).
 	path string `toml:"-"`
@@ -173,6 +183,10 @@ func (c *Config) Get(key string) (string, bool) {
 		return fmt.Sprintf("%v", c.Logging.Verbose), true
 	case "logging.format":
 		return c.Logging.Format, true
+	case "crux.api_key":
+		return c.CrUX.APIKey, true
+	case "psi.api_key":
+		return c.PSI.APIKey, true
 	}
 	return "", false
 }
@@ -212,6 +226,10 @@ func (c *Config) Set(key, value string) error {
 			return fmt.Errorf("logging.format must be text or json")
 		}
 		c.Logging.Format = value
+	case "crux.api_key":
+		c.CrUX.APIKey = value
+	case "psi.api_key":
+		c.PSI.APIKey = value
 	default:
 		return fmt.Errorf("unknown key: %s", key)
 	}
@@ -231,6 +249,8 @@ func Keys() []string {
 		"cache.ttl_crux",
 		"logging.verbose",
 		"logging.format",
+		"crux.api_key",
+		"psi.api_key",
 	}
 }
 
