@@ -86,7 +86,7 @@ func (s *Store) Put(key string, payload json.RawMessage, ttl time.Duration) erro
 	}
 	if !s.hinted && s.HintWriter != nil {
 		if _, err := os.Stat(filepath.Join(s.Dir, ".hinted")); errors.Is(err, os.ErrNotExist) {
-			s.HintWriter("cache dir created at " + s.Dir + " — add .gsc/ to .gitignore if inside a repo")
+			s.HintWriter("cache dir created at " + s.Dir)
 			_ = os.WriteFile(filepath.Join(s.Dir, ".hinted"), []byte("1"), 0o600)
 			s.hinted = true
 		}

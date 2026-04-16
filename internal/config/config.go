@@ -58,7 +58,7 @@ type Config struct {
 func Default() *Config {
 	return &Config{
 		Defaults:   Defaults{Output: "json", Range: "last-28d"},
-		Cache:      Cache{Dir: "./.gsc/cache", DefaultTTL: "15m", TTLPSI: "24h", TTLCrUX: "24h"},
+		Cache:      Cache{Dir: "", DefaultTTL: "15m", TTLPSI: "24h", TTLCrUX: "24h"},
 		Logging:    Logging{Format: "text"},
 		AutoUpdate: true,
 	}
@@ -82,6 +82,17 @@ func AutoUpdateEnabled(c *Config) bool {
 		return false
 	}
 	return true
+}
+
+// DataDir returns the base directory for all gsc persistent data
+// (cache, quota, audit log, update state). Uses os.UserConfigDir(),
+// i.e. ~/.config/gsc on Linux, ~/Library/Application Support/gsc on macOS.
+func DataDir() (string, error) {
+	cfg, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(cfg, "gsc"), nil
 }
 
 func Path() (string, error) {

@@ -116,7 +116,7 @@ func newSitemapsSubmitCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "submit <property> <sitemap-url>",
 		Short: "Submit a sitemap URL to a property",
-		Long: `Submits a sitemap. Not cached. Logged to ./.gsc/audit.log.
+		Long: `Submits a sitemap. Not cached. Logged to ~/.config/gsc/audit.log.
 
 Examples:
   gsc sitemaps submit sc-domain:example.com https://www.example.com/sitemap.xml`,

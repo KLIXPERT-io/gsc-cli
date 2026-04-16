@@ -199,7 +199,7 @@ output = "json"
 range = "last-28d"
 
 [cache]
-dir = "./.gsc/cache"
+# dir = "~/custom/cache"  # override cache location (default: ~/.config/gsc/cache)
 default_ttl = "15m"
 
 [logging]
@@ -209,15 +209,14 @@ format = "text"
 
 Manage it with `gsc config get|set|path|list`.
 
-## Local state
+## Data directory
 
-`gsc` writes to `./.gsc/` in your working directory:
+`gsc` stores persistent data under `~/.config/gsc/`:
 
-- `./.gsc/cache/` — cached API responses
-- `./.gsc/quota.json` — daily/rolling quota counters
-- `./.gsc/audit.log` — one JSON line per mutation (rotated at 10MB)
-
-**Add `.gsc/` to your `.gitignore`** if you run `gsc` inside a git repo.
+- `~/.config/gsc/cache/` — cached API responses
+- `~/.config/gsc/quota.json` — daily/rolling quota counters
+- `~/.config/gsc/audit.log` — one JSON line per mutation (rotated at 10MB)
+- `~/.config/gsc/update-state.json` — auto-update state
 
 ## Flags shared across commands
 

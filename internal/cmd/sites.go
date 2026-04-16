@@ -105,7 +105,7 @@ func newSitesAddCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "add <url>",
 		Short: "Add a property to the authenticated account",
-		Long: `Adds a property. Not cached. Logged to ./.gsc/audit.log.
+		Long: `Adds a property. Not cached. Logged to ~/.config/gsc/audit.log.
 
 Examples:
   gsc sites add sc-domain:example.com

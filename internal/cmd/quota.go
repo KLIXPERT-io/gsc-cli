@@ -10,7 +10,7 @@ func newQuotaCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "quota",
 		Short: "Show today's API usage against known limits",
-		Long: `Prints current counters tracked at ./.gsc/quota.json. Resets at midnight
+		Long: `Prints current counters tracked at ~/.config/gsc/quota.json. Resets at midnight
 America/Los_Angeles (GSC quota window).
 
 Examples:

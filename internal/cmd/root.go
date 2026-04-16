@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"os/exec"
 	"runtime"
 	"time"
@@ -111,17 +112,22 @@ locally, tracks quota, and emits machine-readable errors for LLM agents.`,
 			if st.OutputFormat == "" && cfg.Defaults.Output != "" {
 				st.OutputFormat = cfg.Defaults.Output
 			}
+			// Data dir resolution (~/.config/gsc/).
+			dataDir, err := config.DataDir()
+			if err != nil {
+				return err
+			}
 			// Cache dir resolution.
 			cacheDir := cfg.Cache.Dir
 			if cacheDir == "" {
-				cacheDir = "./.gsc/cache"
+				cacheDir = filepath.Join(dataDir, "cache")
 			}
 			st.Cache = cache.New(cacheDir, cfg.TTL())
 			// Quota store.
-			st.Quota = quota.New("./.gsc/quota.json")
+			st.Quota = quota.New(filepath.Join(dataDir, "quota.json"))
 			st.Quota.WarnFn = func(msg string) { fmt.Fprintln(os.Stderr, "warning: "+msg) }
 			// Audit log.
-			st.Audit = audit.New("./.gsc/audit.log")
+			st.Audit = audit.New(filepath.Join(dataDir, "audit.log"))
 			// Logging.
 			logging.Setup(logging.Options{Verbose: st.Verbose || cfg.Logging.Verbose, Quiet: st.Quiet, Format: firstNonEmpty(st.LogFormat, cfg.Logging.Format, "text")})
 			// Cache hint writer
