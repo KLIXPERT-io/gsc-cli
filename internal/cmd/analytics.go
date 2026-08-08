@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -137,6 +138,9 @@ Examples:
   # include fresh (non-finalized) last-2-days data
   gsc analytics query sc-domain:example.com --dimensions query --data-state all
 
+  # hourly breakdown (up to 10 days back; rows are timestamped in PT)
+  gsc analytics query sc-domain:example.com --group-by hour --range last-7d --output csv
+
   # force byPage aggregation on a domain property
   gsc analytics query sc-domain:example.com --dimensions query --aggregation byPage
 
@@ -144,7 +148,10 @@ Examples:
   gsc analytics query sc-domain:example.com --dimensions query,page --all --output csv
 
   # OR-of-AND filter: (query~brand AND device=MOBILE) OR (country=usa)
-  gsc analytics query sc-domain:example.com --filter-group "query~brand,device=MOBILE" --filter-group "country=usa"`,
+  gsc analytics query sc-domain:example.com --filter-group "query~brand,device=MOBILE" --filter-group "country=usa"
+
+  # RE2 regex filter: pages under /blog/ or /guides/
+  gsc analytics query sc-domain:example.com --dimensions page --filter "page~~/(blog|guides)/"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -166,10 +173,31 @@ Examples:
 			default:
 				return errs.New(errs.CodeInvalidArgs, "--aggregation must be one of: auto, byPage, byProperty")
 			}
-			switch dataState {
-			case "final", "all":
+			if err := validateDataState(dataState); err != nil {
+				return err
+			}
+			switch orderBy {
+			case "clicks", "impressions", "ctr", "position":
 			default:
-				return errs.New(errs.CodeInvalidArgs, "--data-state must be one of: final, all")
+				return errs.New(errs.CodeInvalidArgs, "--order-by must be one of: clicks, impressions, ctr, position")
+			}
+			// Only reorder when asked. Left alone, the API's own ordering is
+			// clicks-desc for most groupings but chronological for date/hour,
+			// which is what a time series wants.
+			sortRequested := cmd.Flags().Changed("order-by") || cmd.Flags().Changed("asc")
+			// The API requires dataState=hourly_all whenever HOUR is a grouping
+			// dimension. Upgrade silently when the user left --data-state at its
+			// default; refuse when they asked for something incompatible.
+			if contains(dims, "hour") {
+				if !cmd.Flags().Changed("data-state") {
+					dataState = "hourly_all"
+				} else if dataState != "hourly_all" {
+					return errs.New(errs.CodeInvalidArgs, "--dimensions hour requires --data-state hourly_all").
+						WithHint("Hourly rows are always partial; the API rejects final/all when grouping by hour.")
+				}
+			} else if dataState == "hourly_all" {
+				return errs.New(errs.CodeInvalidArgs, "--data-state hourly_all requires 'hour' in --dimensions").
+					WithHint("Add --dimensions hour (or --group-by hour) to get an hourly breakdown.")
 			}
 			if all && rf.Compare != "" {
 				return errs.New(errs.CodeInvalidArgs, "--all and --compare are mutually exclusive")
@@ -204,12 +232,13 @@ Examples:
 			if err != nil {
 				return err
 			}
-			keyArgs := []string{start, end, strings.Join(dims, ","), strings.Join(filters, "|"), strings.Join(filterGroups, "|"), searchType, orderBy, fmt.Sprintf("%d", limit), fmt.Sprintf("%v", asc), rf.Compare, aggregation, dataState, fmt.Sprintf("all=%v", all)}
+			keyArgs := []string{start, end, strings.Join(dims, ","), strings.Join(filters, "|"), strings.Join(filterGroups, "|"), searchType, orderBy, fmt.Sprintf("%d", limit), fmt.Sprintf("%v", asc), rf.Compare, aggregation, dataState, fmt.Sprintf("all=%v", all), fmt.Sprintf("sorted=%v", sortRequested)}
 			key := cache.Key("analytics.query", keyArgs, siteURL, identity)
 			data, meta, err := cachedOrCall(ctx, s, key, 15*time.Minute, func(ctx context.Context) (json.RawMessage, error) {
 				if all {
 					var merged []*searchconsole.ApiDataRow
 					var aggType string
+					var meta *searchconsole.Metadata
 					var startRow int64 = 0
 					for {
 						req, err := buildAnalyticsRequest(start, end, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation, startRow, parsedGroups)
@@ -223,6 +252,9 @@ Examples:
 						if aggType == "" {
 							aggType = resp.ResponseAggregationType
 						}
+						if meta == nil {
+							meta = resp.Metadata
+						}
 						merged = append(merged, resp.Rows...)
 						n := int64(len(resp.Rows))
 						if n == 0 || n < limit {
@@ -230,7 +262,13 @@ Examples:
 						}
 						startRow += limit
 					}
+					if sortRequested {
+						sortRows(merged, orderBy, asc)
+					}
 					result := map[string]any{"rows": merged, "responseAggregationType": aggType}
+					if meta != nil {
+						result["metadata"] = meta
+					}
 					return json.Marshal(result)
 				}
 				req, err := buildAnalyticsRequest(start, end, dims, filters, searchType, limit, orderBy, asc, dataState, aggregation, 0, parsedGroups)
@@ -241,7 +279,13 @@ Examples:
 				if err != nil {
 					return nil, err
 				}
+				if sortRequested {
+					sortRows(resp.Rows, orderBy, asc)
+				}
 				result := map[string]any{"rows": resp.Rows, "responseAggregationType": resp.ResponseAggregationType}
+				if resp.Metadata != nil {
+					result["metadata"] = resp.Metadata
+				}
 				if rf.Compare != "" {
 					cs, ce, err := compareRange(start, end, rf.Compare)
 					if err != nil {
@@ -251,6 +295,9 @@ Examples:
 					cresp, err := runQuery(ctx, s, cc, siteURL, creq)
 					if err != nil {
 						return nil, err
+					}
+					if sortRequested {
+						sortRows(cresp.Rows, orderBy, asc)
 					}
 					result["comparison"] = map[string]any{
 						"start": cs, "end": ce, "mode": rf.Compare,
@@ -264,6 +311,11 @@ Examples:
 			}
 			var result map[string]any
 			_ = json.Unmarshal(data, &result)
+			// A metadata block means the window runs into data Google is still
+			// collecting, so the tail rows may still move.
+			if _, ok := result["metadata"]; ok {
+				meta.Partial = true
+			}
 			// CSV rendering: one row per result row with dimension columns + metric columns.
 			cols := append(append([]string{}, dims...), "clicks", "impressions", "ctr", "position")
 			rows := []output.Row{}
@@ -288,16 +340,16 @@ Examples:
 		},
 	}
 	addRangeFlags(c, &rf)
-	c.Flags().StringVar(&dimensions, "dimensions", "", "comma list: query,page,country,device,searchAppearance,date (default query)")
-	c.Flags().StringArrayVar(&filters, "filter", nil, "filter: <dim><op><value> where op is = != ~ !~ (repeatable)")
+	c.Flags().StringVar(&dimensions, "dimensions", "", "comma list: query,page,country,device,searchAppearance,date,hour (default query)")
+	c.Flags().StringArrayVar(&filters, "filter", nil, "filter: <dim><op><value> where op is = != ~ !~ ~~ !~~ (repeatable)")
 	c.Flags().StringArrayVar(&filterGroups, "filter-group", nil, "OR-of-AND filter group: comma-separated filters form one AND group; repeat flag for OR (mutually exclusive with --filter)")
 	c.Flags().StringVar(&searchType, "search-type", "web", "web|image|video|news|discover|googleNews")
 	c.Flags().Int64Var(&limit, "limit", 20, "row limit (max 25000)")
-	c.Flags().StringVar(&orderBy, "order-by", "clicks", "clicks|impressions|ctr|position")
+	c.Flags().StringVar(&orderBy, "order-by", "clicks", "sort key: clicks|impressions|ctr|position (client-side; the API always selects the top --limit rows by clicks, so pair with --all to sort the full set)")
 	c.Flags().BoolVar(&asc, "asc", false, "sort ascending (default descending)")
 	c.Flags().StringVar(&groupBy, "group-by", "", "shortcut to add a dimension (e.g. --group-by date for time-series)")
 	c.Flags().StringVar(&aggregation, "aggregation", "auto", "aggregation type: auto|byPage|byProperty")
-	c.Flags().StringVar(&dataState, "data-state", "final", "data freshness: final|all (all includes last ~2 days, not finalized)")
+	c.Flags().StringVar(&dataState, "data-state", "final", "data freshness: final|all|hourly_all (all includes last ~2 days; hourly_all is required with, and implied by, --dimensions hour)")
 	c.Flags().BoolVar(&all, "all", false, "auto-paginate until all rows fetched (uses --limit as page size, clamps to 25000; incompatible with --compare)")
 	return c
 }
@@ -446,36 +498,96 @@ func buildAnalyticsRequest(start, end string, dims []string, filters []string, s
 		req.AggregationType = aggregation
 	}
 	if dataState != "" {
-		if dataState != "final" && dataState != "all" {
-			return nil, errs.New(errs.CodeInvalidArgs, "--data-state must be one of: final, all")
+		if err := validateDataState(dataState); err != nil {
+			return nil, err
 		}
 		req.DataState = dataState
 	}
+	// orderBy/asc are applied client-side by sortRows: the Search Analytics API
+	// has no sort parameter and always returns rows ordered by clicks desc.
 	_ = orderBy
 	_ = asc
 	return req, nil
 }
 
+func validateDataState(dataState string) error {
+	switch dataState {
+	case "final", "all", "hourly_all":
+		return nil
+	}
+	return errs.New(errs.CodeInvalidArgs, "--data-state must be one of: final, all, hourly_all")
+}
+
+// sortRows orders rows by the requested metric. The API has no sort parameter
+// and always returns the top rows by clicks, so without --all this only
+// reorders the page that was fetched — it does not re-select rows.
+func sortRows(rows []*searchconsole.ApiDataRow, orderBy string, asc bool) {
+	if len(rows) < 2 {
+		return
+	}
+	metric := func(r *searchconsole.ApiDataRow) float64 {
+		switch orderBy {
+		case "impressions":
+			return r.Impressions
+		case "ctr":
+			return r.Ctr
+		case "position":
+			return r.Position
+		default:
+			return r.Clicks
+		}
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		a, b := metric(rows[i]), metric(rows[j])
+		if a == b {
+			return false
+		}
+		if asc {
+			return a < b
+		}
+		return a > b
+	})
+}
+
 func parseFilter(f string) (*searchconsole.ApiDimensionFilter, error) {
+	// Longest tokens first: "!~~" must win over "!~", and "~~" over "~".
 	ops := []struct {
 		token string
 		op    string
 	}{
+		{"!~~", "excludingRegex"},
+		{"~~", "includingRegex"},
 		{"!=", "notEquals"},
 		{"!~", "notContains"},
 		{"~", "contains"},
 		{"=", "equals"},
 	}
+	// Split at the earliest operator so that operator characters inside the
+	// value (a regex, say) don't get mistaken for the separator; on a tie the
+	// longest token wins.
+	best := -1
+	var bestOp string
 	for _, op := range ops {
-		if i := strings.Index(f, op.token); i > 0 {
-			return &searchconsole.ApiDimensionFilter{
-				Dimension:  f[:i],
-				Operator:   op.op,
-				Expression: f[i+len(op.token):],
-			}, nil
+		i := strings.Index(f, op.token)
+		if i <= 0 {
+			continue
+		}
+		if best == -1 || i < best || (i == best && len(op.token) > len(bestOp)) {
+			best, bestOp = i, op.token
 		}
 	}
-	return nil, errs.New(errs.CodeInvalidArgs, "filter must be <dim><op><value> with op in =,!=,~,!~: "+f)
+	if best > 0 {
+		for _, op := range ops {
+			if op.token == bestOp {
+				return &searchconsole.ApiDimensionFilter{
+					Dimension:  f[:best],
+					Operator:   op.op,
+					Expression: f[best+len(bestOp):],
+				}, nil
+			}
+		}
+	}
+	return nil, errs.New(errs.CodeInvalidArgs, "filter must be <dim><op><value> with op in =,!=,~,!~,~~,!~~: "+f)
 }
 
 func parseCSV(s string) []string {

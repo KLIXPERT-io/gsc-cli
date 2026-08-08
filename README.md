@@ -166,6 +166,13 @@ gsc analytics query sc-domain:example.com \
 # Include fresh (non-finalized) last-2-days data
 gsc analytics query sc-domain:example.com --dimensions query --data-state all
 
+# Hourly breakdown, up to 10 days back (timestamps are Pacific Time)
+gsc analytics query sc-domain:example.com --group-by hour --range last-7d --output csv
+
+# Sort by a metric other than clicks (pair with --all to sort the full set)
+gsc analytics query sc-domain:example.com \
+  --dimensions query --order-by impressions --all --output csv
+
 # Force byPage aggregation on a domain property
 gsc analytics query sc-domain:example.com --dimensions query --aggregation byPage
 
@@ -175,6 +182,10 @@ gsc analytics query sc-domain:example.com --dimensions query,page --all --output
 # OR-of-AND filter groups: (query~brand AND device=MOBILE) OR (country=usa)
 gsc analytics query sc-domain:example.com \
   --filter-group "query~brand,device=MOBILE" --filter-group "country=usa"
+
+# RE2 regex filters: ~~ matches, !~~ excludes
+gsc analytics query sc-domain:example.com \
+  --dimensions page --filter "page~~/(blog|guides)/"
 
 # Overview with fresh data / domain-rollup aggregation
 gsc analytics overview sc-domain:example.com --data-state all --aggregation byProperty
