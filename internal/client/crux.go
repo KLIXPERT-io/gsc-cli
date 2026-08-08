@@ -160,10 +160,7 @@ func (c *CrUX) post(ctx context.Context, url string, body any) (json.RawMessage,
 	resp, err := c.HTTP.Do(httpReq)
 	if err != nil {
 		m := err.Error()
-		if strings.Contains(m, "no such host") || strings.Contains(m, "dial tcp") {
-			return nil, errs.New(errs.CodeNetworkUnreachable, m)
-		}
-		return nil, errs.New(errs.CodeGeneric, m)
+		return nil, TranslateTransport(m)
 	}
 	defer resp.Body.Close()
 	payload, _ := io.ReadAll(resp.Body)

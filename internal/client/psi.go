@@ -60,8 +60,5 @@ func TranslatePSI(err error) error {
 		}
 	}
 	m := err.Error()
-	if strings.Contains(m, "no such host") || strings.Contains(m, "dial tcp") {
-		return errs.New(errs.CodeNetworkUnreachable, m)
-	}
-	return errs.New(errs.CodeGeneric, m)
+	return TranslateTransport(m)
 }

@@ -3,11 +3,12 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -40,6 +41,8 @@ type State struct {
 	CacheTTL     time.Duration
 	Yes          bool
 	CredsPath    string
+	SAPath       string
+	Subject      string
 	Verbose      bool
 	Quiet        bool
 	LogFormat    string
@@ -64,27 +67,76 @@ func (s *State) buildClient(ctx context.Context) (*client.Client, string, error)
 	return c, identity, nil
 }
 
-// buildHTTPClient returns a raw OAuth-authed *http.Client and the user identity.
+// buildHTTPClient returns a raw authed *http.Client and the caller identity,
+// for either OAuth or service account credentials.
 func (s *State) buildHTTPClient(ctx context.Context) (*http.Client, string, error) {
-	credsPath := s.CredsPath
-	if credsPath == "" {
-		credsPath = os.Getenv("GSC_CREDENTIALS")
-	}
-	if credsPath == "" {
-		credsPath = config.ExpandHome(s.Cfg.Auth.CredentialsPath)
-	}
-	cfg, err := auth.LoadConfig(credsPath)
+	creds, err := s.credentials()
 	if err != nil {
-		hint := "Run `gsc config set auth.credentials_path <path-to-client_secrets.json>`, or pass --credentials, or set GSC_CREDENTIALS."
-		return nil, "", errs.New(errs.CodeAuthMissing, err.Error()).WithHint(hint)
+		return nil, "", err
 	}
-	httpClient, err := auth.HTTPClient(ctx, cfg)
+	httpClient, err := creds.HTTPClient(ctx)
 	if err != nil {
-		return nil, "", errs.New(errs.CodeAuthExpired, err.Error()).WithHint("Run `gsc auth login`.")
+		hint := "Run `gsc auth login`."
+		if creds.Kind == auth.KindServiceAccount {
+			hint = "Check the service account key with `gsc auth status`; it may have been disabled or revoked."
+		}
+		return nil, "", errs.New(errs.CodeAuthExpired, err.Error()).WithHint(hint)
 	}
-	tok, _ := auth.LoadToken()
-	identity := auth.Identity(cfg, tok)
-	return httpClient, identity, nil
+	return httpClient, creds.Identity(), nil
+}
+
+// credentials resolves the configured credentials file and loads it.
+func (s *State) credentials() (*auth.Credentials, error) {
+	path, subject := s.resolveCredentials()
+	creds, err := auth.Resolve(path, subject)
+	if err != nil {
+		if errors.Is(err, auth.ErrSubjectNotSupported) {
+			return nil, errs.New(errs.CodeInvalidArgs, err.Error()).
+				WithHint("Drop --subject/auth.subject, or point at a service account key.")
+		}
+		hint := "Pass --credentials <client_secrets.json> or --service-account <key.json>, set GSC_CREDENTIALS / GSC_SERVICE_ACCOUNT / GOOGLE_APPLICATION_CREDENTIALS, or run `gsc config set auth.credentials_path <path>`."
+		return nil, errs.New(errs.CodeAuthMissing, err.Error()).WithHint(hint)
+	}
+	return creds, nil
+}
+
+// resolveCredentials picks the credentials file and optional delegation
+// subject, honoring flags > env > config. Within each layer a service account
+// source wins over a generic one, so a CI job can export GSC_SERVICE_ACCOUNT
+// without disturbing a user's stored OAuth setup.
+func (s *State) resolveCredentials() (path, subject string) {
+	cfg := s.Cfg
+	if cfg == nil {
+		cfg = config.Default()
+	}
+	path = firstNonEmpty(
+		s.SAPath,
+		s.CredsPath,
+		os.Getenv("GSC_SERVICE_ACCOUNT"),
+		os.Getenv("GSC_CREDENTIALS"),
+		os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"),
+		cfg.Auth.ServiceAccountPath,
+		cfg.Auth.CredentialsPath,
+	)
+	subject = firstNonEmpty(s.Subject, os.Getenv("GSC_SUBJECT"), cfg.Auth.Subject)
+	return config.ExpandHome(path), subject
+}
+
+// rememberCredentials persists a freshly verified credentials path to config so
+// later commands find it without flags or env vars.
+func (s *State) rememberCredentials(creds *auth.Credentials) {
+	key := "auth.credentials_path"
+	current := s.Cfg.Auth.CredentialsPath
+	if creds.Kind == auth.KindServiceAccount {
+		key = "auth.service_account_path"
+		current = s.Cfg.Auth.ServiceAccountPath
+	}
+	if current != "" {
+		return
+	}
+	if err := s.Cfg.Set(key, creds.Path); err != nil {
+		fmt.Fprintln(os.Stderr, "warning: could not save credentials path to config: "+err.Error())
+	}
 }
 
 // Execute builds and runs the root command.
@@ -143,7 +195,9 @@ locally, tracks quota, and emits machine-readable errors for LLM agents.`,
 	root.PersistentFlags().BoolVar(&st.Refresh, "refresh", false, "bypass cache read, write fresh result")
 	root.PersistentFlags().DurationVar(&st.CacheTTL, "cache-ttl", 0, "override cache TTL for this call (e.g. 30m)")
 	root.PersistentFlags().BoolVar(&st.Yes, "yes", false, "answer yes to confirmation prompts (required for destructive ops in non-TTY)")
-	root.PersistentFlags().StringVar(&st.CredsPath, "credentials", "", "path to Google client_secrets.json (overrides config + env)")
+	root.PersistentFlags().StringVar(&st.CredsPath, "credentials", "", "path to a Google client_secrets.json or service account key (overrides config + env)")
+	root.PersistentFlags().StringVar(&st.SAPath, "service-account", "", "path to a service account key JSON (no browser login required)")
+	root.PersistentFlags().StringVar(&st.Subject, "subject", "", "Workspace user to impersonate via domain-wide delegation (service account only)")
 	root.PersistentFlags().BoolVarP(&st.Verbose, "verbose", "v", false, "verbose API traces to stderr")
 	root.PersistentFlags().BoolVarP(&st.Quiet, "quiet", "q", false, "suppress warnings on stderr")
 	root.PersistentFlags().StringVar(&st.LogFormat, "log-format", "", "log format: text|json (default text)")

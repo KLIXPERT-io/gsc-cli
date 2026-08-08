@@ -50,8 +50,19 @@ func Translate(err error) error {
 			return errs.New(errs.CodeInvalidArgs, ge.Message)
 		}
 	}
-	msg := err.Error()
-	if strings.Contains(msg, "no such host") || strings.Contains(msg, "dial tcp") {
+	return TranslateTransport(err.Error())
+}
+
+// TranslateTransport classifies errors that never reached the API: token
+// acquisition failures and network problems. Credentials that fail to mint a
+// token surface here rather than as an HTTP status, so they must still map to
+// an auth code — callers branch on the code, not the message.
+func TranslateTransport(msg string) error {
+	switch {
+	case strings.Contains(msg, "oauth2: cannot fetch token"):
+		return errs.New(errs.CodeAuthDenied, msg).
+			WithHint("Run `gsc auth status`. For a service account, confirm the key is still active and that any --subject delegation is granted for the requested scope.")
+	case strings.Contains(msg, "no such host"), strings.Contains(msg, "dial tcp"):
 		return errs.New(errs.CodeNetworkUnreachable, msg)
 	}
 	return errs.New(errs.CodeGeneric, msg)

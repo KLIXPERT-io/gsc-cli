@@ -7,8 +7,12 @@
 
 # Local credentials (must never be committed)
 client_secrets.json
+client_secret.json
 credentials.json
 token.json
+service-account*.json
+service_account*.json
+*-sa.json
 
 # Editor / OS
 .DS_Store

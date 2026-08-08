@@ -13,7 +13,9 @@ Installation instructions live in [INSTALL.md](https://github.com/KLIXPERT-io/gs
 
 ## First-run setup
 
-The user must do this once — you cannot do it for them:
+The user must do this once — you cannot do it for them. There are two options; `gsc auth status` reports which is active via `data.mode`.
+
+**OAuth (interactive):**
 
 1. In Google Cloud, enable the **Search Console API** and create an **OAuth 2.0 Client ID** of type **Desktop app**. Download `client_secrets.json`.
 2. Run:
@@ -22,6 +24,16 @@ The user must do this once — you cannot do it for them:
    gsc auth login
    ```
 3. Tokens are stored in the OS keychain (file fallback: `~/.config/gsc/token.json`, 0600).
+
+**Service account (headless — no browser):**
+
+1. Create a service account and JSON key in Google Cloud.
+2. In Search Console → **Settings → Users and permissions**, add the service account's `client_email` as a user. Skipping this yields `auth_denied` on every call.
+3. Run:
+   ```bash
+   gsc config set auth.service_account_path ~/secrets/gsc-sa.json
+   ```
+   Or set `GSC_SERVICE_ACCOUNT` / pass `--service-account <path>`. No `gsc auth login` needed.
 
 Verify auth with `gsc sites list`.
 
@@ -175,4 +187,4 @@ Accepted `--range` values: `last-7d`, `last-28d` (default), `last-3m`, `last-6m`
 - For large result sets, use `--all` with `--output csv` and pipe to a file instead of loading everything into memory.
 - Before a destructive command (`sites remove`, `sitemaps remove`), confirm with the user, then pass `--yes`.
 - Errors are stable: branch on `error.code`, not on `error.message`.
-- If `gsc auth status` shows the user is not logged in, stop and ask them to run `gsc auth login` — you cannot complete the OAuth flow on their behalf.
+- On an auth error, run `gsc auth status` and branch on `data.mode`. If it is `oauth` and there is no valid token, stop and ask the user to run `gsc auth login` — you cannot complete the OAuth flow on their behalf. If it is `service_account`, no login exists to run: an `auth_denied` almost always means the service account's `client_email` (shown in the status output) has not been added as a user on the property, which only the user can fix.

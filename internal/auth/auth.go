@@ -1,7 +1,12 @@
-// Package auth handles Google OAuth loopback flow and token storage per FR-3.
+// Package auth handles Google authentication per FR-3. Two flavors are
+// supported and auto-detected from the credentials file:
 //
-// Tokens are stored in the OS keychain (via zalando/go-keyring) when available,
-// with a fallback to ~/.config/gsc/token.json (mode 0600).
+//   - an installed-app OAuth client (client_secrets.json), driven by the
+//     loopback flow in `gsc auth login`; tokens are stored in the OS keychain
+//     (via zalando/go-keyring) when available, with a fallback to
+//     ~/.config/gsc/token.json (mode 0600).
+//   - a service account key file, which signs its own tokens and needs no
+//     interactive login. See credentials.go for the shared entry point.
 package auth
 
 import (
@@ -46,7 +51,7 @@ type ClientSecrets struct {
 // LoadConfig reads a client_secrets.json file and returns an OAuth2 config.
 func LoadConfig(credentialsPath string) (*oauth2.Config, error) {
 	if credentialsPath == "" {
-		return nil, errors.New("no credentials path configured: set auth.credentials_path or pass --credentials")
+		return nil, ErrNoCredentials
 	}
 	b, err := os.ReadFile(credentialsPath)
 	if err != nil {

@@ -14,6 +14,13 @@ import (
 
 type Auth struct {
 	CredentialsPath string `toml:"credentials_path"`
+	// ServiceAccountPath points at a service account key file. It takes
+	// precedence over CredentialsPath, so an OAuth setup can stay configured
+	// while a machine runs on a service account.
+	ServiceAccountPath string `toml:"service_account_path"`
+	// Subject enables domain-wide delegation: the service account impersonates
+	// this Workspace user. Service account credentials only.
+	Subject string `toml:"subject"`
 }
 
 type Defaults struct {
@@ -176,6 +183,10 @@ func (c *Config) Get(key string) (string, bool) {
 	switch key {
 	case "auth.credentials_path":
 		return c.Auth.CredentialsPath, true
+	case "auth.service_account_path":
+		return c.Auth.ServiceAccountPath, true
+	case "auth.subject":
+		return c.Auth.Subject, true
 	case "defaults.property":
 		return c.Defaults.Property, true
 	case "defaults.output":
@@ -207,6 +218,10 @@ func (c *Config) Set(key, value string) error {
 	switch key {
 	case "auth.credentials_path":
 		c.Auth.CredentialsPath = value
+	case "auth.service_account_path":
+		c.Auth.ServiceAccountPath = value
+	case "auth.subject":
+		c.Auth.Subject = value
 	case "defaults.property":
 		c.Defaults.Property = value
 	case "defaults.output":
@@ -251,6 +266,8 @@ func (c *Config) Set(key, value string) error {
 func Keys() []string {
 	return []string{
 		"auth.credentials_path",
+		"auth.service_account_path",
+		"auth.subject",
 		"defaults.property",
 		"defaults.output",
 		"defaults.range",
